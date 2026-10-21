@@ -1,0 +1,96 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Spell Academy</title>
+<style>
+:root{--a:#8b5cf6}body[data-t=ember]{--a:#f97316}body[data-t=frost]{--a:#06b6d4}body[data-t=gold]{--a:#eab308}
+body{margin:0;font:18px system-ui;background:#1b1633;color:#f3efff;display:flex;justify-content:center}
+#app{width:100%;max-width:640px;padding:16px}
+button,input,select,textarea{font:inherit;padding:10px 14px;border-radius:10px;border:2px solid var(--a);background:#2a2250;color:inherit;margin:4px;max-width:90%}
+button{background:var(--a);cursor:pointer;color:#fff;font-weight:700}
+.card{background:#2a2250;border-radius:14px;padding:14px;margin:10px 0}
+.bar{height:12px;background:#0006;border-radius:6px}.bar i{display:block;height:100%;background:var(--a);border-radius:6px}
+.w{cursor:pointer;padding:2px 4px;border-radius:6px;border-bottom:2px dotted #fff8}.w.sel{background:var(--a)}
+.bad{color:#fca5a5}.ok{color:#86efac}h1,h2{margin:.3em 0}table{width:100%;font-size:15px}
+</style>
+<div id=app></div>
+<script>
+const W=`necessary|It is {w} to wear a helmet when cycling.|One collar (c), two sleeves (ss).
+separate|Please {w} the plastic from the paper.|There is "a rat" in sep-a-rat-e.
+beautiful|The orchids at Gardens by the Bay are {w}.|beau + ti + ful.
+because|I stayed home {w} it was raining.|Big Elephants Can Always Understand Small Elephants.
+friend|A true {w} will always help you.|fri-END: a friend is there at the end.
+believe|I {w} you can win the spelling bee.|Never believe a lie: "lie" is inside.
+receive|Did you {w} my message?|i before e, except after c.
+environment|We must protect our {w}.|en-vi-RON-ment: "iron" is hiding inside.
+government|The {w} built new parks.|govern + ment.
+library|We borrow books from the {w}.|li-BRAR-y: the r after the b.
+February|Chinese New Year is often in {w}.|Feb-RU-ary: there is an r before the u.
+Wednesday|We have PE on {w}.|Wed-nes-day: say it out loud as written.
+restaurant|We ate dinner at a {w}.|rest-au-rant.
+neighbour|Our {w} waters the plants.|neigh + bour (British spelling).
+exercise|Daily {w} keeps you healthy.|ex-er-CISE: ends in -cise.
+language|Learning a new {w} is fun.|"gu" like in guard.
+adventure|They went on a jungle {w}.|ad-ven-ture: ends in -ture.
+knowledge|Reading builds {w}.|Silent k: know + ledge.
+embarrass|Do not {w} your friends.|Two r's and two s's.
+guarantee|The shop will {w} the quality.|g-u-a-r-a-n-tee.
+disappear|The magician made the coin {w}.|dis + appear: appear has pp.
+immediately|Come here {w}!|im-me-di-ate-ly: double m.
+interesting|The story was very {w}.|inter + est + ing.
+vegetable|Eat a {w} every day.|veg-e-ta-ble.
+chocolate|I love hot {w}.|choc-o-late: 3 syllables.
+temperature|The {w} today is 33 degrees.|tem-per-a-ture: "era" inside.
+thought|I {w} about it all night.|ough says "aw".
+weather|The {w} is sunny.|w + EAT + her.
+island|Sentosa is an {w}.|Silent s.
+tomorrow|We will visit the zoo {w}.|One m, two r's.`;
+const $=s=>document.querySelector(s),app=$('#app'),R=h=>app.innerHTML=h;
+let S=JSON.parse(localStorage.S||'{}'),words=[],focus='acc',timer,cur,hand,ws;
+const api=(p,b)=>fetch('/api/'+p,{method:b?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+S.tok},body:b&&JSON.stringify(b)}).then(r=>r.json());
+const say=t=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';u.rate=.8;speechSynthesis.speak(u)};
+const sayS=()=>say(cur.s.replace('{w}',cur.w));
+const mis=w=>{const i=1+Math.floor(Math.random()*(w.length-2)),r=w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);return r===w?w.slice(0,i)+w[i]+w.slice(i):r};
+const pick=n=>[...words].sort(()=>Math.random()-.5).slice(0,n);
+const TT=['Apprentice','Novice','Adept','Sorcerer','Archmage'],TH=['','ember','frost','gold'],lv=x=>Math.floor(Math.sqrt(x/50))+1;
+function hdr(){const l=lv(S.xp),n=50*l*l,p=50*(l-1)*(l-1);document.body.dataset.t=TH[Math.min(l-1,3)];
+ return `<h2>🧙 ${S.name} · ${TT[Math.min(l-1,4)]} Lv${l}</h2><div class=bar><i style="width:${(S.xp-p)/(n-p)*100}%"></i></div><small>${S.xp} XP · ${l<4?['Ember','Frost','Gold'][l-1]+' wand theme unlocks at Lv'+(l+1):'all wand themes unlocked'}</small>`}
+function login(){R(`<h1>🔮 Spell Academy</h1><div class=card><input id=n placeholder="Your name"><input id=c placeholder="Class code"><button onclick=doLogin()>Enter the Academy</button><p id=e class=bad></p></div><button onclick=teacher()>Teacher / Admin</button>`)}
+async function doLogin(){const r=await api('login',{name:$('#n').value,code:$('#c').value});if(r.error)return $('#e').textContent=r.error;S=r;localStorage.S=JSON.stringify(S);await load();menu()}
+async function load(){words=W.split('\n').map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}));try{const c=await api('lists');if(Array.isArray(c))words=words.concat(c)}catch{}}
+function menu(){R(hdr()+`<div class=card><b>Focus</b> <select onchange="focus=this.value"><option value=acc>Accuracy (no timer)</option><option value=spd ${focus=='spd'?'selected':''}>Speed (20s timer)</option></select></div>
+<button onclick="play(1)">🎧 Cast by Ear</button><button onclick="play(2)">✏️ Mend the Spell</button><button onclick="play(3)">🔍 Spot the Curse</button><button onclick=duel()>⚔️ Duel Arena</button><button onclick=logout()>Leave</button>`)}
+function logout(){S={};localStorage.S='{}';login()}
+async function report(it,mode,ok,tries,ms){const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus});S.xp=r.xp;localStorage.S=JSON.stringify(S);return r.gain}
+async function play(m){let tot=0;const n=m==3?2:6;for(let i=0;i<n;i++)tot+=m==3?await spot():await single(pick(1)[0],m,i+1,n);R(hdr()+`<div class=card><h2>Round over! +${tot} XP</h2></div><button onclick=menu()>Back to the Academy</button>`)}
+function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;let tries=0,t0=Date.now(),left=20;
+ const sc=it.s.replace('{w}',mode==2?`<b class=bad>${shown||mis(it.w)}</b> <input id=a size=12>`:'_____');
+ R(hdr()+`<div class=card>Spell ${i}/${n} <span id=tm></span><p>${mode==1?'<button onclick="say(cur.w)">🔊 Hear word</button><button onclick=sayS()>🔊 In a sentence</button><br><input id=a>':sc}</p><button id=go>Cast!</button><p id=f></p></div>`);
+ const fin=async ok=>{clearInterval(timer);const g=await report(it,tag||mode,ok,tries,Date.now()-t0);$('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP</span>`:`<span class=bad>The word is <b>${it.w}</b>. 📖 ${it.h}</span>`)+'<br><button id=nx>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g)};
+ $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);
+  $('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?`It starts with "${it.w[0]}" and has ${it.w.length} letters.`:`${it.h} It begins "${it.w.slice(0,Math.ceil(it.w.length/2))}…"`)+` (${3-tries} left)</span>`;$('#a').select()};
+ $('#a').onkeydown=e=>e.key=='Enter'&&$('#go').click();$('#a').focus();
+ if(focus=='spd')timer=setInterval(()=>{$('#tm').textContent='⏱'+--left;if(left<=0){tries=3;fin(false)}},1000);
+ if(mode==1)say(it.w)})}
+async function spot(){const it=pick(4),bad=new Set();while(bad.size<2)bad.add(Math.floor(Math.random()*4));
+ const sh=it.map((x,i)=>bad.has(i)?mis(x.w):x.w),sel=new Set(),t0=Date.now();let g=0;
+ R(hdr()+`<div class=card><b>Tap the misspelled words, then submit.</b><p>${it.map((x,i)=>x.s.replace('{w}',`<span class=w data-i=${i}>${sh[i]}</span>`)).join(' ')}</p><button id=go>Submit</button></div>`);
+ document.querySelectorAll('.w').forEach(e=>e.onclick=()=>{const i=+e.dataset.i;sel.has(i)?sel.delete(i):sel.add(i);e.classList.toggle('sel')});
+ await new Promise(r=>$('#go').onclick=r);
+ for(let i=0;i<4;i++)g+=await report(it[i],'spot1',sel.has(i)==bad.has(i),1,(Date.now()-t0)/4);
+ let k=0;for(const i of bad)g+=await single(it[i],2,++k,bad.size,sh[i],'spot2');return g}
+function duel(){R(hdr()+`<div class=card>Share one room code with your opponent(s):<br><input id=r placeholder="Room code"><button onclick=join()>Enter Arena</button></div><button onclick=menu()>Back</button>`)}
+function join(){const room=$('#r').value.toUpperCase();ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws/duel?room='+room+'&name='+encodeURIComponent(S.name));
+ R(`<h2>⚔️ Arena ${room}</h2><div id=pl></div><div class=card id=cards></div><div class=card id=inc></div><p id=lg></p><button onclick="ws.close();menu()">Leave</button>`);deal();
+ ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.pl)$('#pl').innerHTML=m.pl.map(p=>`${p.n} ❤️${p.hp}<div class=bar><i style="width:${Math.max(0,p.hp)}%"></i></div>`).join('');
+  if(m.log)$('#lg').textContent=m.log;if(m.t=='win')$('#lg').textContent='🏆 '+m.n+' wins!';
+  if(m.t=='incoming'){$('#inc').innerHTML=`🛡️ ${m.from} cast a curse! Find and fix the misspelling to deflect:<p>${m.s}</p><input id=d><button id=dg>Deflect!</button>`;$('#dg').onclick=()=>{ws.send(JSON.stringify({t:'deflect',a:$('#d').value}));$('#inc').innerHTML=''}}}}
+function deal(){hand=pick(3);$('#cards').innerHTML=['🔥 Fireball','❄️ Frost Bolt','⚡ Lightning'].map((n,i)=>`<button onclick=cast(${i})>${n}</button>`).join('')}
+function cast(i){const it=hand[i];say(it.w);let t=0;$('#cards').innerHTML=`Spell the word you hear: <input id=a><button id=go>Cast!</button><button onclick="say(hand[${i}].w)">🔊</button><p id=f></p>`;
+ $('#go').onclick=()=>{if($('#a').value.trim().toLowerCase()==it.w){ws.send(JSON.stringify({t:'cast',w:it.w,s:it.s}));report(it,'duel',true,t+1,0);deal()}else if(++t>=3){report(it,'duel',false,3,0);$('#f').textContent='Fizzled! It was '+it.w+'. '+it.h;setTimeout(deal,3000)}else{$('#f').textContent='Fizzle! '+it.h;$('#a').value=''}}}
+function teacher(){R(`<h2>Teacher / Admin</h2><div class=card><input id=u placeholder=Username><input id=p type=password placeholder=Password><button onclick=tLogin()>Teacher login</button></div><div class=card><b>Admin: create teacher</b><input id=ak type=password placeholder="Admin key"><input id=nu placeholder="New username"><input id=np placeholder="New password"><button onclick=mk()>Create</button></div><p id=e></p><button onclick=login()>Back</button>`)}
+async function mk(){const r=await api('admin/teacher',{key:$('#ak').value,user:$('#nu').value,pass:$('#np').value});$('#e').textContent=r.error||'Teacher created'}
+async function tLogin(){const r=await api('teacher/login',{user:$('#u').value,pass:$('#p').value});if(r.error)return $('#e').textContent=r.error;S={tok:r.tok};dash()}
+async function dash(){const cl=await api('classes');R(`<h2>Your classes</h2>${cl.map(c=>`<div class=card>${c.name} · code <b>${c.code}</b> <button onclick="ana('${c.code}')">Analytics</button></div>`).join('')}<div class=card><input id=cn placeholder="New class name"><button onclick=mc()>Create class</button></div><div class=card><b>Upload word list</b><input id=lc placeholder="Class code"><input id=ln placeholder="List name"><textarea id=lt rows=5 style="width:90%" placeholder="word|sentence using {w}|hint (one per line)"></textarea><button onclick=ul()>Upload</button></div><div id=an></div><p id=e></p>`)}
+async function mc(){await api('teacher/class',{name:$('#cn').value});dash()}
+async function ul(){const r=await api('teacher/list',{code:$('#lc').value,name:$('#ln').value,text:$('#lt').value});$('#e').textContent=r.error||r.added+' words added'}
+async function ana(c){const r=await api('analytics?code='+c);$('#an').innerHTML=`<div class=card><table><tr><th>Pupil<th>XP<th>Tries<th>Acc<th>Avg s</tr>${r.students.map(s=>`<tr><td>${s.name}<td>${s.xp}<td>${s.n}<td>${s.n?Math.round(100*s.ok/s.n):0}%<td>${(s.ms/1000).toFixed(1)}</tr>`).join('')}</table><b>Hardest words</b><br>${r.words.map(w=>`${w.word} (${w.miss}/${w.n} missed)`).join(', ')}</div>`}
+S.tok?(load().then(menu)):login();
+</script>
