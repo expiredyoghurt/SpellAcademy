@@ -47,6 +47,24 @@ Then click **Deploy** so the secrets take effect.
 
 Every push to GitHub redeploys automatically.
 
+## The story
+The Great Grimoire of Aldermere once held every word in perfect order, until the Misspell Wraiths crept in and twisted its letters, and spells began to fizzle. Pupils are new apprentices at Aldermere Academy who restore the Grimoire one word at a time. Ranks: Apprentice (Lv1), Novice (Lv5), Adept (Lv10), Sorcerer (Lv15), Archmage (Lv20).
+
+- 🎧 **Echo Hall** (mode 1): hear the Grimoire whisper a word and write it down. Open from Lv1.
+- ✏️ **Mending Workshop** (mode 2): repair a spell the Wraiths twisted. Unlocks at Lv10.
+- 🔍 **Curse-Breaking Tower** (mode 3): spot the cursed words, then break each curse. Unlocks at Lv20.
+- ⚔️ **Duel Arena**: apprentices hurl cursed words at each other and deflect them. Open from Lv1.
+- 🕳️ **Wraith Dungeon** (solo): start with 3 hearts, lose one for each word you fail after 3 attempts. Random events can heal a heart (up to 5) or drop bonus XP. The run ends after 100 correct answers (+100 XP) or at 0 hearts. Words you have missed before appear more often. Limits per run: hearts never exceed 5, at most 3 heals, 6 random events and 1,500 XP (change `HEAL_MAX`, `EV_MAX`, `RUN_XP_CAP` at the top of `src/worker.js`). Unlocks at Lv5 and can be locked by teachers like other rooms.
+
+## Pupil accounts, cards and room locks (teacher dashboard)
+- **Add pupils in bulk:** open a class, expand *Add pupils in bulk*, paste one name per line. The name is the pupil's username.
+- **Print cards:** click *Print cards* on a class. A print dialog opens with one card per pupil (username, class code, game URL), two per row, cut-out ready.
+- **Rooms:** under *Rooms & sign-up*, set each room to *By level* (default), *Always open* or *Locked*. Locked rooms are sealed for that class and the server rejects their answers.
+- **Sign-up:** switch to *Teacher-created only* so pupils cannot create new accounts by typing a new name.
+
+## Upgrading from the first version
+Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then commit the new files to GitHub.
+
 ## Custom word lists
 Teacher dashboard → **Upload word list**, one word per line:
 
@@ -56,7 +74,7 @@ necessary|It is {w} to wear a helmet when cycling.|One collar, two sleeves.
 `{w}` marks where the word goes in the sentence. The hint is shown when a pupil gets it wrong. Custom lists are added to the built-in list for that class.
 
 ## Notes
-- XP is calculated on the server from accuracy and speed. Levels follow `level = floor(sqrt(xp/50)) + 1`.
+- XP is calculated on the server from accuracy and speed. Level = floor(XP / 150) + 1, so Lv10 needs 1,350 XP and Lv20 needs 2,850 XP.
 - Voice uses the browser's built-in speech (en-GB). Pupils should use Chrome, Edge or Safari with sound on.
 - Duel spell checks currently run in the browser, so don't use duels for assessed marks.
 
