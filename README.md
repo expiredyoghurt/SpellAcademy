@@ -62,6 +62,9 @@ The Great Grimoire of Aldermere once held every word in perfect order, until the
 - **Rooms:** under *Rooms & sign-up*, set each room to *By level* (default), *Always open* or *Locked*. Locked rooms are sealed for that class and the server rejects their answers.
 - **Sign-up:** switch to *Teacher-created only* so pupils cannot create new accounts by typing a new name.
 
+## Guest mode
+The login screen has a **Play as guest** button. Guests play Echo Hall, Mending Workshop, Curse-Breaking Tower and the Duel Arena with the built-in words. Their XP is not saved, teachers do not see them in analytics, and the Wraith Dungeon needs a real account. To hide the button, set `GUEST=false` at the top of the script in `public/index.html`.
+
 ## Upgrading from the first version
 Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then commit the new files to GitHub.
 

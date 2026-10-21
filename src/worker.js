@@ -85,4 +85,4 @@ msg(id,m){const me=this.p.get(id);if(!me||me.hp<=0)return;
   f.ws.send(JSON.stringify({t:'incoming',from:me.name,s:String(m.s).replace('{w}','<b>'+mis(w)+'</b>')}))}
  if(m.t==='deflect'&&me.pend){const pd=me.pend,c=this.p.get(pd.from);me.pend=null;let log;
   if(String(m.a).trim().toLowerCase()===pd.w){if(c)c.hp-=10;log=me.name+' deflected the curse! It rebounds on '+(c?c.name:'the caster')+'.'}else{me.hp-=15;log=me.name+' failed to deflect and took 15 damage!'}
-  const alive=[...this.p.values()].filter(x=>x.hp>0);this.all({log});if(alive.length===1&&this.p.size>1)this.all({t:'win',n:alive[0].name})}}}
+  const alive=[...this.p.values()].filter(x=>x.hp>0);this.all({log,who:me.name});if(alive.length===1&&this.p.size>1)this.all({t:'win',n:alive[0].name})}}}
