@@ -9,7 +9,7 @@ run_worker_first = ["/api/*", "/ws/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "spell-academy"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "4d873258-5e2d-42e4-919f-629618d32f00"
 
 [[durable_objects.bindings]]
 name = "DUEL"
