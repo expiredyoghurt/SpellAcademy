@@ -1,5 +1,6 @@
-import {W} from './words.js';
-const BANK=W.split('\n').map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}));
+import {LISTS} from './words.js';
+const PARSED=Object.fromEntries(Object.entries(LISTS).map(([k,v])=>[k,v.w.split('\n').filter(Boolean).map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}))]));
+const flagsFor=(ws,lv,sh,id)=>{const seen=new Set(),out=[];for(const x of ws){const why=[];if(seen.has(x.w))why.push('repeated in this list');seen.add(x.w);lv.forEach(v=>{if((PARSED[v]||[]).some(y=>y.w==x.w))why.push('already in '+v.toUpperCase())});sh.forEach(o=>{if(o.id!=id&&o.v.some(v=>lv.includes(v))&&o.s.has(x.w))why.push('in shared list "'+o.name+'"')});if(why.length)out.push({w:x.w,why:why.join('; ')})}return out};
 const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
 const enc=new TextEncoder(),b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
 async function hmac(k,m){const key=await crypto.subtle.importKey('raw',enc.encode(k),{name:'HMAC',hash:'SHA-256'},false,['sign']);return b64(await crypto.subtle.sign('HMAC',key,enc.encode(m)))}
@@ -14,14 +15,45 @@ const ms=(s,xp)=>Object.fromEntries(Object.keys(GATE).map(m=>[m,un(s,m,xp)||((s.
 const gain=(ok,tries,ms,focus)=>{if(!ok)return 1;const base=[0,10,6,3][tries]||3;return Math.round(base+Math.max(0,1-ms/20000)*(focus=='spd'?15:5))};
 const mis=w=>{const i=1+Math.floor(Math.random()*(w.length-2));const r=w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);return r===w?w.slice(0,i)+w[i]+w.slice(i):r};
 
+// ---- Progress: daily streak, mastery and badges (all derived from the attempts table) ----
+const GOAL=5,SGT=28800; // daily goal = 5 answers; days are counted in Singapore time
+const dayNo=ts=>Math.floor((ts+SGT)/86400),wkNo=d=>Math.floor((d-4)/7); // weeks start on Monday
+const MASTER_CTE="with r as (select word,ok,id,row_number() over (partition by word order by id desc) rn from attempts where student_id=? and mode!='spot1') ";
+// One missed day per Monday-Sunday week is forgiven (a free 'streak freeze'), if the day before it was a goal day.
+function streakOf(rows,today){const days=new Set(rows.filter(r=>r.c>=GOAL).map(r=>r.d)),used={};let n=0,d=today-1;const hit=days.has(today);if(hit)n=1;
+ for(;;){if(days.has(d)){n++;d--;continue}const w=wkNo(d);if(!used[w]&&days.has(d-1)){used[w]=1;d--;continue}break}
+ return{n,hit,free:!used[wkNo(today)]}}
+async function progress(D,st){const id=st.id,now=Math.floor(Date.now()/1000),today=dayNo(now);
+ const r=await D.batch([
+  D.prepare("select count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode!='spot1'").bind(id),
+  D.prepare("select ok,tries from attempts where student_id=? and mode!='spot1' order by id desc limit 10").bind(id),
+  D.prepare("select (ts+28800)/86400 d,count(*) c from attempts where student_id=? and mode!='spot1' group by d").bind(id),
+  D.prepare(MASTER_CTE+"select count(*) n from (select word from r where rn<=3 group by word having count(*)=3 and sum(ok)=3)").bind(id),
+  D.prepare("select count(*) n from attempts where student_id=? and mode='spot2' and ok=1").bind(id),
+  D.prepare("select 1 x from runs where student_id=? and status='won' limit 1").bind(id),
+  D.prepare('select badge,ts from badges where student_id=?').bind(id)]);
+ const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results;
+ const s=streakOf(days,today),k=tot.k,l=lvl(st.xp);
+ const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10};
+ const owned=new Set(have.map(x=>x.badge)),fresh=Object.keys(earned).filter(b=>earned[b]&&!owned.has(b));
+ if(fresh.length)await D.batch(fresh.map(b=>D.prepare('insert or ignore into badges(student_id,badge) values(?,?)').bind(id,b)));
+ const t=days.find(x=>x.d==today);
+ return{fresh,streak:{n:s.n,hit:s.hit,free:s.free,today:t?t.c:0,goal:GOAL},mastered:mas,have:[...have,...fresh.map(b=>({badge:b,ts:now}))]}}
+
 export default{async fetch(req,env){
 const u=new URL(req.url),p=u.pathname;
 if(p==='/ws/duel')return env.DUEL.get(env.DUEL.idFromName((u.searchParams.get('room')||'X').toUpperCase())).fetch(req);
+if(p==='/api/guest-words')return J(PARSED.default);
 const b=req.method==='POST'?await req.json().catch(()=>({})):{};
 const a=await verify(env,(req.headers.get('authorization')||'').slice(7)),D=env.DB;
 const T=a&&a.r==='t',St=a&&a.r==='s';
 const cs=async c=>{const r=await D.prepare('select settings from classes where code=?').bind(c).first();try{return JSON.parse((r&&r.settings)||'{}')}catch{return{}}};
-const mkch=async a=>{const c=await D.prepare('select words from lists where code=?').bind(a.code).all(),bank=BANK.concat(c.results.flatMap(x=>JSON.parse(x.words))),mw=(await D.prepare('select word from attempts where student_id=? and ok=0 group by word order by count(*) desc limit 10').bind(a.id).all()).results.map(x=>x.word),miss=bank.filter(w=>mw.includes(w.w)),arr=miss.length&&Math.random()<.4?miss:bank,w=arr[Math.floor(Math.random()*arr.length)],k=Math.random()<.5?'ear':'fix';
+const lv6=a=>[...new Set(Array.isArray(a)?a:[])].filter(x=>/^p[1-6]$/.test(x));
+const bankFor=async code=>{const r=await D.prepare('select list from class_lists where code=?').bind(code).all(),c=await D.prepare('select teacher_id from classes where code=?').bind(code).first();let ids=r.results.map(x=>x.list);if(!ids.length)ids=['default'];let out=[];
+ for(const id of ids){if(PARSED[id]){out=out.concat(PARSED[id]);if(/^p[1-6]$/.test(id)&&c){const t=await D.prepare('select words from lists where (owner=? and levels like ?) or shared like ?').bind(c.teacher_id,'%"'+id+'"%','%"'+id+'"%').all();t.results.forEach(x=>{out=out.concat(JSON.parse(x.words))})}}
+  else if(/^c\d+$/.test(id)){const l=await D.prepare('select words from lists where id=?').bind(+id.slice(1)).first();if(l)out=out.concat(JSON.parse(l.words))}}
+ return[...new Map(out.map(x=>[x.w,x])).values()]};
+const mkch=async a=>{const bank=await bankFor(a.code),mw=(await D.prepare('select word from attempts where student_id=? and ok=0 group by word order by count(*) desc limit 10').bind(a.id).all()).results.map(x=>x.word),miss=bank.filter(w=>mw.includes(w.w)),arr=miss.length&&Math.random()<.4?miss:bank,w=arr[Math.floor(Math.random()*arr.length)],k=Math.random()<.5?'ear':'fix';
  return{cur:{k,w:w.w,s:w.s,h:w.h,t:Date.now(),n:0},pub:k=='ear'?{k,w:w.w,sn:w.s.replace('{w}',w.w)}:{k,s:w.s,sh:mis(w.w)}}};
 const own=c=>D.prepare('select 1 from classes where code=? and teacher_id=?').bind((c||'').toUpperCase(),a.id).first();
 if(p==='/api/login'){const name=(b.name||'').trim().slice(0,30),code=(b.code||'').trim().toUpperCase();
@@ -34,6 +66,17 @@ if(p==='/api/teacher/login'){const t=await D.prepare('select * from teachers whe
  return J({tok:await sign(env,{r:'t',id:t.id})})}
 if(p==='/api/admin/teacher'){if(!env.ADMIN_KEY||b.key!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
  const salt=crypto.randomUUID();try{await D.prepare('insert into teachers(user,salt,hash) values(?,?,?)').bind(b.user,salt,await hash(b.pass,salt)).run()}catch{return J({error:'Username taken'},400)}return J({ok:1})}
+if(p==='/api/admin/pending'||p==='/api/admin/review'||p==='/api/admin/dedupe'){if(!env.ADMIN_KEY||b.key!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
+ if(p==='/api/admin/pending'){const all=(await D.prepare("select l.*,t.user owner_name from lists l left join teachers t on t.id=l.owner where l.levels!='[]'").all()).results,sh=all.filter(x=>x.shared!=='[]').map(o=>({id:o.id,name:o.name,v:JSON.parse(o.shared),s:new Set(JSON.parse(o.words).map(y=>y.w))}));
+  return J({lists:all.map(l=>{const lv=JSON.parse(l.levels||'[]'),ok=JSON.parse(l.shared||'[]'),dec=JSON.parse(l.declined||'[]'),ws=JSON.parse(l.words);return{id:l.id,name:l.name,owner:l.owner_name,count:ws.length,words:ws.map(x=>x.w),pending:lv.filter(v=>!ok.includes(v)&&!dec.includes(v)),flags:flagsFor(ws,lv,sh,l.id)}}).filter(l=>l.pending.length)})}
+ if(p==='/api/admin/review'){const l=await D.prepare('select * from lists where id=?').bind(+b.id).first();if(!l||!/^p[1-6]$/.test(b.level||''))return J({error:'Not found'},404);
+  const ok=JSON.parse(l.shared||'[]').filter(v=>v!==b.level),dec=JSON.parse(l.declined||'[]').filter(v=>v!==b.level);(b.approve?ok:dec).push(b.level);
+  await D.prepare('update lists set shared=?,declined=? where id=?').bind(JSON.stringify(ok),JSON.stringify(dec),l.id).run();return J({ok:1})}
+ const ls=(await D.prepare("select id,words,shared from lists where shared!='[]' order by id").all()).results,seen={};let removed=0;
+ for(const l of ls){const v=JSON.parse(l.shared),ws=JSON.parse(l.words),keep=[],loc=new Set();for(const x of ws){if(loc.has(x.w))continue;loc.add(x.w);if(v.some(k=>(PARSED[k]||[]).some(y=>y.w==x.w)||(seen[k]||new Set()).has(x.w)))continue;keep.push(x)}
+  v.forEach(k=>{seen[k]=seen[k]||new Set();keep.forEach(x=>seen[k].add(x.w))});
+  if(keep.length&&keep.length!==ws.length){removed+=ws.length-keep.length;await D.prepare('update lists set words=? where id=?').bind(JSON.stringify(keep),l.id).run()}}
+ return J({removed})}
 if(St&&p==='/api/me'){const m=await D.prepare('select xp from students where id=?').bind(a.id).first();return J({xp:m.xp,modes:ms(await cs(a.code),m.xp)})}
 if(St&&p==='/api/run/start'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!un(await cs(a.code),'4',x0.xp))return J({error:'locked'},403);
  await D.prepare("update runs set status='abandoned' where student_id=? and status='active'").bind(a.id).run();
@@ -49,22 +92,42 @@ if(St&&p==='/api/run/answer'){const r=await D.prepare("select * from runs where 
  const ch=end?null:await mkch(a);if(ch){ch.cur.h=cur.h|0;ch.cur.e=cur.e|0;ch.cur.x=cur.x|0}
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp) values(?,?,?,?,?,?,?)').bind(a.id,'dun-'+cur.k,cur.w,ok?1:0,cur.n,t,g),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),D.prepare('update runs set hearts=?,correct=?,cur=?,status=? where id=?').bind(hearts,correct,ch?JSON.stringify(ch.cur):r.cur,end?(end=='win'?'won':'dead'):'active',r.id)]);
  const s=await D.prepare('select xp from students where id=?').bind(a.id).first();
- return J({res:ok?'ok':'fail',word:ok?undefined:cur.w,tip:cur.h,gain:g,capped,event,hearts,correct,end,ch:ch&&ch.pub,xp:s.xp,modes:ms(await cs(a.code),s.xp)})}
-if(St&&p==='/api/lists'){const r=await D.prepare('select words from lists where code=?').bind(a.code).all();return J(r.results.flatMap(x=>JSON.parse(x.words)))}
+ const pg=await progress(D,{id:a.id,xp:s.xp});return J({res:ok?'ok':'fail',word:ok?undefined:cur.w,tip:cur.h,gain:g,capped,event,hearts,correct,end,ch:ch&&ch.pub,xp:s.xp,modes:ms(await cs(a.code),s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0})}
+if(St&&p==='/api/lists')return J(await bankFor(a.code));
 if(St&&p==='/api/attempt'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first(),set=await cs(a.code);if(!un(set,MM[b.mode],x0.xp))return J({error:'locked'},403);const g=gain(b.ok,b.tries,b.ms,b.focus);
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp) values(?,?,?,?,?,?,?)').bind(a.id,String(b.mode),String(b.word),b.ok?1:0,b.tries|0,b.ms|0,g),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id)]);
- const s=await D.prepare('select xp from students where id=?').bind(a.id).first();return J({gain:g,xp:s.xp,level:lvl(s.xp),modes:ms(set,s.xp)})}
+ const s=await D.prepare('select xp from students where id=?').bind(a.id).first(),pg=b.mode==='spot1'?null:await progress(D,{id:a.id,xp:s.xp});
+ return J({gain:g,xp:s.xp,level:lvl(s.xp),modes:ms(set,s.xp),badges:pg?pg.fresh:[],goal:pg&&pg.streak.today===GOAL?pg.streak.n:0})}
+if(St&&p==='/api/progress'){const m=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!m)return J({error:'Not found or not signed in'},404);const pg=await progress(D,{id:a.id,xp:m.xp});
+ return J({xp:m.xp,streak:pg.streak,mastered:pg.mastered,badges:pg.have,fresh:pg.fresh,modes:ms(await cs(a.code),m.xp)})}
+if(St&&p==='/api/spellbook'){const bank=new Map((await bankFor(a.code)).map(x=>[x.w,x]));
+ const rows=(await D.prepare(MASTER_CTE+"select word,count(*) n,sum(ok) k,sum(case when rn<=3 then ok else 0 end) r3,sum(case when rn<=3 then 1 else 0 end) c3 from r group by word order by max(id) desc limit 500").bind(a.id).all()).results;
+ const met=new Set(rows.map(x=>x.word));
+ return J({words:rows.map(x=>{const b=bank.get(x.word)||{};return{w:x.word,n:x.n,k:x.k,m:x.c3==3&&x.r3==3?1:0,s:b.s,h:b.h}}),unseen:[...bank.keys()].filter(w=>!met.has(w)).length})}
 if(T){
+ if(p==='/api/teacher/wordlists'){const mine=(await D.prepare('select id,name,words,levels,shared,declined from lists where owner=?').bind(a.id).all()).results,sh=(await D.prepare("select words,shared from lists where shared!='[]'").all()).results;return J({builtin:Object.entries(LISTS).map(([id,v])=>({id,name:v.n,count:new Set([...PARSED[id].map(w=>w.w),...mine.filter(x=>(x.levels||'').includes('"'+id+'"')).flatMap(x=>JSON.parse(x.words).map(w=>w.w)),...sh.filter(x=>(x.shared||'').includes('"'+id+'"')).flatMap(x=>JSON.parse(x.words).map(w=>w.w))]).size})),custom:mine.map(x=>({id:'c'+x.id,name:x.name,count:JSON.parse(x.words).length,levels:JSON.parse(x.levels||'[]'),shared:JSON.parse(x.shared||'[]'),declined:JSON.parse(x.declined||'[]')}))})}
+ if(p==='/api/teacher/listtags'){const l=await D.prepare('select * from lists where id=? and owner=?').bind(+String(b.id||'').slice(1),a.id).first();if(!l)return J({ok:false});const lv=lv6(b.levels),keep=x=>JSON.parse(x||'[]').filter(v=>lv.includes(v));
+  await D.prepare('update lists set levels=?,shared=?,declined=? where id=?').bind(JSON.stringify(lv),JSON.stringify(keep(l.shared)),JSON.stringify(keep(l.declined)),l.id).run();return J({ok:true})}
+ if(p==='/api/teacher/listflags'){const l=await D.prepare('select * from lists where id=? and owner=?').bind(+String(b.id||'').slice(1),a.id).first();if(!l)return J({error:'Not found'},404);
+  const sh=(await D.prepare("select id,name,words,shared from lists where shared!='[]'").all()).results.map(o=>({id:o.id,name:o.name,v:JSON.parse(o.shared),s:new Set(JSON.parse(o.words).map(y=>y.w))}));return J({flags:flagsFor(JSON.parse(l.words),JSON.parse(l.levels||'[]'),sh,l.id)})}
+ if(p==='/api/teacher/dedupe'){const l=await D.prepare('select * from lists where id=? and owner=?').bind(+String(b.id||'').slice(1),a.id).first();if(!l)return J({error:'Not found'},404);
+  const all=JSON.parse(l.words),seen=new Set(JSON.parse(l.levels||'[]').flatMap(v=>(PARSED[v]||[]).map(x=>x.w))),keep=[];for(const x of all){if(seen.has(x.w))continue;seen.add(x.w);keep.push(x)}
+  if(!keep.length)return J({error:'Every word is already in the built-in lists, so nothing was changed.'},400);
+  await D.prepare('update lists set words=? where id=?').bind(JSON.stringify(keep),l.id).run();return J({removed:all.length-keep.length})}
+ if(p==='/api/teacher/assign'){const c=(b.code||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
+  const mine=(await D.prepare('select id from lists where owner=?').bind(a.id).all()).results.map(x=>'c'+x.id),ids=[...new Set(b.lists||[])].filter(i=>LISTS[i]||mine.includes(i));
+  await D.batch([D.prepare('delete from class_lists where code=?').bind(c),...ids.map(i=>D.prepare('insert into class_lists(code,list) values(?,?)').bind(c,i))]);return J({ok:1,lists:ids})}
  if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
  if(p==='/api/teacher/students'){const c=(b.code||u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
   if(req.method==='POST'){const n=[...new Set((b.text||'').split('\n').map(x=>x.trim().slice(0,30)).filter(Boolean))].slice(0,200);if(!n.length)return J({added:0,total:0});
    const r=await D.batch(n.map(x=>D.prepare('insert or ignore into students(name,code) values(?,?)').bind(x,c)));return J({added:r.reduce((t,x)=>t+x.meta.changes,0),total:n.length})}
   return J((await D.prepare('select name,xp from students where code=? order by name').bind(c).all()).results)}
- if(p==='/api/classes'){return J((await D.prepare('select * from classes where teacher_id=?').bind(a.id).all()).results)}
- if(p==='/api/teacher/class'){const code=Math.random().toString(36).slice(2,8).toUpperCase();await D.prepare('insert into classes values(?,?,?)').bind(code,b.name||'Class',a.id).run();return J({code})}
- if(p==='/api/teacher/list'){if(!await D.prepare('select 1 from classes where code=? and teacher_id=?').bind((b.code||'').toUpperCase(),a.id).first())return J({error:'Not your class'},403);
-  const w=(b.text||'').split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(x=>/^[a-zA-Z'-]+$/.test(x[0]||'')).map(x=>({w:x[0].toLowerCase(),s:(x[1]||'').includes('{w}')?x[1]:'Spell the word: {w}.',h:x[2]||'Sound it out slowly.'}));
-  await D.prepare('insert into lists(code,name,words) values(?,?,?)').bind(b.code.toUpperCase(),b.name||'List',JSON.stringify(w)).run();return J({added:w.length})}
+ if(p==='/api/classes'){const cl=(await D.prepare('select * from classes where teacher_id=?').bind(a.id).all()).results,al=(await D.prepare('select code,list from class_lists where code in (select code from classes where teacher_id=?)').bind(a.id).all()).results;cl.forEach(c=>c.lists=al.filter(x=>x.code==c.code).map(x=>x.list));return J(cl)}
+ if(p==='/api/teacher/class'){const code=Math.random().toString(36).slice(2,8).toUpperCase();await D.prepare('insert into classes(code,name,teacher_id) values(?,?,?)').bind(code,b.name||'Class',a.id).run();return J({code})}
+ if(p==='/api/teacher/list'){const w=(b.text||'').split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(x=>/^[a-zA-Z'-]{3,}$/.test(x[0]||'')).map(x=>({w:x[0].toLowerCase(),s:(x[1]||'').includes('{w}')?x[1]:'Spell the word: {w}.',h:x[2]||'Sound it out slowly.'}));
+  if(!w.length)return J({error:'No valid words found (3+ letters each)'},400);
+  const sw=new Set(),w2=w.filter(x=>!sw.has(x.w)&&sw.add(x.w));
+  const r=await D.prepare('insert into lists(owner,name,words,levels) values(?,?,?,?)').bind(a.id,(b.name||'My list').slice(0,60),JSON.stringify(w2),JSON.stringify(lv6(b.levels))).run();return J({added:w2.length,dupes:w.length-w2.length,id:'c'+r.meta.last_row_id})}
  if(p==='/api/analytics'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await D.prepare('select 1 from classes where code=? and teacher_id=?').bind(c,a.id).first())return J({error:'Not your class'},403);
   const st=await D.prepare('select s.name,s.xp,count(a.id) n,coalesce(sum(a.ok),0) ok,coalesce(avg(a.ms),0) ms from students s left join attempts a on a.student_id=s.id where s.code=? group by s.id').bind(c).all();
   const wd=await D.prepare('select a.word,count(*) n,sum(1-a.ok) miss from attempts a join students s on s.id=a.student_id where s.code=? group by a.word order by miss desc limit 10').bind(c).all();
