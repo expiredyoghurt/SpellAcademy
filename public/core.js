@@ -12,7 +12,12 @@ const say=(t,r=.8)=>{try{speechSynthesis.cancel();const u=new SpeechSynthesisUtt
 const sayS=()=>say(cur.s.replace('{w}',cur.w));
 const mis=w=>{const i=1+Math.floor(Math.random()*(w.length-2)),r=w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);return r===w?w.slice(0,i)+w[i]+w.slice(i):r};
 const pick=n=>[...words].sort(()=>Math.random()-.5).slice(0,n);
-const AI=' autocomplete=off autocapitalize=none autocorrect=off spellcheck=false enterkeyhint=go';
+// No predictive text / autocorrect / spellcheck / grammar helpers / password-manager prompts on any text field
+const NOAID={autocomplete:'off',autocapitalize:'none',autocorrect:'off',spellcheck:'false',writingsuggestions:'false','data-gramm':'false','data-gramm_editor':'false','data-enable-grammarly':'false','data-lpignore':'true','data-1p-ignore':'true','data-form-type':'other'};
+const AI=' autocomplete=off autocapitalize=none autocorrect=off spellcheck=false writingsuggestions=false data-gramm=false data-gramm_editor=false data-enable-grammarly=false data-lpignore=true data-1p-ignore=true data-form-type=other enterkeyhint=go';
+const noAid=el=>{if(el.matches&&el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]),textarea'))for(const k in NOAID)if(!el.hasAttribute(k))el.setAttribute(k,NOAID[k])};
+const noAidAll=r=>{noAid(r);r.querySelectorAll&&r.querySelectorAll('input,textarea').forEach(noAid)};
+new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>n.nodeType==1&&noAidAll(n)))).observe(document.documentElement,{childList:true,subtree:true});
 const TT=['Apprentice','Novice','Adept','Sorcerer','Archmage'],TH=['','ember','frost','gold','gold'],lv=x=>Math.floor(x/150)+1,rk=x=>Math.min(4,Math.floor(lv(x)/5));
 const UN=[[5,'Ember wand theme'],[5,'Wraith Dungeon'],[10,'Frost wand theme'],[10,'Mending Workshop'],[15,'Gold wand theme'],[20,'Curse-Breaking Tower']];
 const RC=['#7c3aed','#ea580c','#0891b2','#ca8a04','#be123c'],rob=()=>{const c=RC[rk(S.xp||0)];return{h:c,r:c}};
