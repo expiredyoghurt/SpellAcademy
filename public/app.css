@@ -49,3 +49,10 @@ summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weig
 @media(prefers-reduced-motion:reduce){.fx,.tt,.cf,.bar i{animation:none!important;transition:none!important}.cf{display:none}}
 #pr{display:none;width:100%}
 @media print{#shell,#toast{display:none!important}#pr{display:grid;grid-template-columns:1fr 1fr;gap:8mm}body{background:#fff;color:#000;display:block}.pc{border:2px dashed #444;padding:6mm;break-inside:avoid;color:#000;font-size:14pt}}
+/* teacher dashboard */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}@media(min-width:760px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border-radius:var(--r);padding:14px;text-align:center}.kpi b{display:block;font-size:1.9em;line-height:1.1}
+.scr{overflow-x:auto}table{border-collapse:collapse}th,td{padding:8px 10px;text-align:left;white-space:nowrap}tr+tr td{border-top:1px solid #fff1}tr[onclick]:hover td{background:#ffffff0d}
+button.sm{min-height:36px;padding:2px 10px;margin:0;font-size:.85em}
+.hm{display:grid;grid-template-columns:minmax(90px,1fr) repeat(14,20px);gap:3px;align-items:center}.hm small{text-align:center;font-size:11px}.hn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.hm1{display:flex;gap:3px;flex-wrap:wrap}.hc{display:block;width:20px;height:20px;border-radius:5px;background:#ffffff14}.hc.h1{background:#8b5cf688}.hc.h2{background:var(--a)}

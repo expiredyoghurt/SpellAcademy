@@ -4,7 +4,7 @@ function login(){R(`<h1>🔮 Spell Academy</h1><div class=card><small>The Great 
 async function doLogin(){const r=await api('login',{name:$('#n').value,code:$('#c').value});if(r.error)return $('#e').textContent=r.error;S=r;save();await load();home()}
 async function load(){try{const r=S.guest?await fetch('/api/guest-words').then(x=>x.json()):await api('lists');if(Array.isArray(r))words=r}catch{}}
 async function prog(){if(S.guest)return P=null;const r=await api('progress');if(r.error){if(/signed in/.test(r.error))logout();return P=null}S.xp=r.xp;S.modes=r.modes;save();return P=r}
-function tabGo(k){scrollTo(0,0);({home,rooms,book,me})[k]()}
+function tabGo(k){scrollTo(0,0);window[k]()}
 const ring=(f,t)=>`<svg width=74 height=74 viewBox="0 0 74 74"><circle cx=37 cy=37 r=30 fill=none stroke="#0006" stroke-width=8 /><circle cx=37 cy=37 r=30 fill=none stroke="var(--a)" stroke-width=8 stroke-linecap=round stroke-dasharray="${(188.5*f).toFixed(1)} 188.5" transform="rotate(-90 37 37)"/><text x=37 y=43 text-anchor=middle fill=#fff font-size=18 font-weight=700>${t}</text></svg>`;
 async function home(){R(hdr()+'<div class=card><small>Loading your tower…</small></div>','home');const p=await prog(),l=lv(S.xp),r=rk(S.xp),nx=UN.find(u=>u[0]>l),g=p?p.streak:{n:0,today:0,goal:5,free:0};
  const bs=p?[...p.badges].sort((a,b)=>b.ts-a.ts).slice(0,4).map(x=>BD.find(d=>d[0]==x.badge)).filter(Boolean):[];
@@ -27,8 +27,8 @@ async function me(){R(hdr()+'<div class=card><small>Loading…</small></div>','m
 function snd(){localStorage.sa_mute=muted()?'0':'1';sfx('ok');me()}
 function logout(){S={};save();login()}
 async function guest(){S={guest:1,name:'Guest',xp:0,modes:{1:true,2:true,3:true,4:'L',d:true}};await load();home()}
-async function report(it,mode,ok,tries,ms){if(S.guest){const g=!ok?1:Math.round(([0,10,6,3][tries]||3)+Math.max(0,1-ms/20000)*(focus=='spd'?15:5));S.xp+=g;return g}
- const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus});if(r.error){alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);return 0}S.xp=r.xp;S.modes=r.modes;save();fx(r);return r.gain}
+async function report(it,mode,ok,tries,ms,ans){if(S.guest){const g=!ok?1:Math.round(([0,10,6,3][tries]||3)+Math.max(0,1-ms/20000)*(focus=='spd'?15:5));S.xp+=g;return g}
+ const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus,ans});if(r.error){alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);return 0}S.xp=r.xp;S.modes=r.modes;save();fx(r);return r.gain}
 async function play(m){if(m==3&&words.length<4)return alert('This word list needs at least 4 words for the Curse-Breaking Tower.');
  const b4={...S.modes},l0=lv(S.xp);let tot=0;const n=m==3?2:6;combo=0;for(let i=0;i<n;i++)tot+=m==3?await spot():await single(pick(1)[0],m,i+1,n);
  const l1=lv(S.xp),nu=MD.filter(x=>S.modes[x[0]]===true&&b4[x[0]]!==true).map(x=>x[2]);
@@ -41,7 +41,7 @@ let SPW='#9ca3af';const wcol=()=>['#9ca3af','#a78bfa','#34d399','#fb923c'][Math.
 function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol();let tries=0,t0=Date.now(),left=20,last='';
  const sc=esc(it.s).replace('{w}',mode==2?`<b class=bad>${esc(shown||mis(it.w))}</b> <input id=a class="ans inl" size=12 ${AI}>`:'_____');
  R(hdr()+`<div id=sp class="card stage">${spr('wiz',rob(),4)} ${spr('wr',{g:SPW},4)}</div><div class=card><div class=prog><small>Spell ${i}/${n}</small><span id=tm></span>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p>${mode==1?`<span class=row><button onclick="say(cur.w)">🔊 Hear</button><button class=ghost onclick="say(cur.w,.5)">🐢 Slow</button><button class=ghost onclick=sayS()>💬 Sentence</button></span><input id=a class=ans ${AI}>`:sc}</p><button id=go class=wide>Cast!</button><p id=f></p></div>`);
- const fin=async ok=>{clearInterval(timer);react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report(it,tag||mode,ok,tries,Date.now()-t0);
+ const fin=async ok=>{clearInterval(timer);react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report(it,tag||mode,ok,tries,Date.now()-t0,last);
   $('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP${combo>1?' · 🔥 combo x'+combo:''}</span>`:`<span class=bad>The word is <b>${esc(it.w)}</b>.</span><br>${last?diff(last,it.w)+'<br>':''}📖 ${esc(it.h)}`)+'<br><button id=nx class=wide>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g);$('#nx').focus()};
  $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();last=v;tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);
   react('no');sfx('no');buzz(60);$('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?`It starts with "${esc(it.w[0])}" and has ${it.w.length} letters.`:`${esc(it.h)} It begins "${esc(it.w.slice(0,Math.ceil(it.w.length/2)))}…"`)+` (${3-tries} left)</span>`;$('#a').select()};
@@ -70,12 +70,26 @@ function dshow(r,msg,kd){DG.ch=r.ch;const ch=r.ch,wc=['#9ca3af','#a78bfa','#34d3
   const m=(x.res=='ok'?'✨ Correct! +'+x.gain+' XP':'💔 The word is <b>'+esc(x.word)+'</b>. 📖 '+esc(x.tip))+(x.capped?'<br>⭐ XP cap for this run reached.':'')+(x.event?'<br>'+(x.event.includes('heart')?spr('potion',{},4)+' ':'')+x.event:'');
   x.end?dend(x,m):dshow(x,m,x.res=='ok'?'ok':'no')}}
 function dend(x,m){if(x.end=='win'){confetti();sfx('lvl')}R(hdr()+`<div class="card center">${spr('wiz',rob(),6)}<h2>${x.end=='win'?'🏆 You cleared the dungeon!':'The Wraiths overwhelm you…'}</h2><p>${m}</p><p>Answers: ${x.correct}/100 · XP this run: ${DG.tot}</p></div><button class="wide big" onclick=dstart()>Descend again</button><button class="wide ghost" onclick=rooms()>Back to the Academy</button>`)}
-function duel(){R(hdr()+`<div class=card>Share one room code with your opponent(s):<br><input id=r class=wide placeholder="Room code" ${AI} autocapitalize=characters><button class=wide onclick=join()>Enter Arena</button></div><button class="wide ghost" onclick=rooms()>Back</button>`)}
-function join(){const room=$('#r').value.toUpperCase();DN=S.guest?'Guest'+(Math.floor(Math.random()*900)+100):S.name;ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws/duel?room='+room+'&name='+encodeURIComponent(DN));
- R(`<h2>⚔️ Arena ${esc(room)}</h2><div id=pl></div><div id=ar class="card center"></div><div class=card id=cards></div><div class=card id=inc></div><p id=lg></p><button class="wide ghost" onclick="ws.close();rooms()">Leave</button>`);deal();arena('');
- ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.pl)$('#pl').innerHTML=m.pl.map(p=>`${esc(p.n)} ❤️${p.hp}<div class=bar><i style="width:${Math.max(0,p.hp)}%"></i></div>`).join('');
-  if(m.log){$('#lg').textContent=m.log;if(m.who==DN){const f=m.log.includes('failed');arena(f?'no':'ok');sfx(f?'no':'ok')}}if(m.t=='win'){$('#lg').textContent='🏆 '+m.n+' wins!';arena(m.n==DN?'ok':'no');if(m.n==DN){confetti();sfx('lvl')}}
-  if(m.t=='incoming'){arena('in');$('#inc').innerHTML=`🛡️ ${esc(m.from)} cast a curse! Find and fix the misspelling to deflect:<p>${m.s}</p><input id=d class=ans ${AI}><button id=dg class=wide>Deflect!</button>`;$('#dg').onclick=()=>{ws.send(JSON.stringify({t:'deflect',a:$('#d').value}));$('#inc').innerHTML=''}}}}
-function deal(){hand=pick(3);$('#cards').innerHTML='<div class=row>'+['🔥 Fireball','❄️ Frost Bolt','⚡ Lightning'].map((n,i)=>`<button onclick=cast(${i})>${n}</button>`).join('')+'</div>'}
-function cast(i){const it=hand[i];say(it.w);let t=0;$('#cards').innerHTML=`Spell the word you hear: <input id=a class=ans ${AI}><span class=row><button id=go>Cast!</button><button class=ghost onclick="say(hand[${i}].w)">🔊</button><button class=ghost onclick="say(hand[${i}].w,.5)">🐢</button></span><p id=f></p>`;$('#a').focus();
- $('#go').onclick=()=>{if($('#a').value.trim().toLowerCase()==it.w){ws.send(JSON.stringify({t:'cast',w:it.w,s:it.s}));arena('ok');sfx('ok');report(it,'duel',true,t+1,0);deal()}else if(++t>=3){arena('no');sfx('no');report(it,'duel',false,3,0);$('#f').textContent='Fizzled! It was '+it.w+'. '+it.h;setTimeout(deal,3000)}else{sfx('no');$('#f').textContent='Fizzle! '+it.h;$('#a').value=''}}}
+function duel(){R(hdr()+`<div class=card>Share one room code with your opponent(s):<br><small>${S.guest?'Guests can duel but do not earn XP.':'The arena checks every spelling, and every correct spell earns XP.'}</small><input id=r class=wide placeholder="Room code" ${AI} autocapitalize=characters><button class=wide onclick=join()>Enter Arena</button></div><button class="wide ghost" onclick=rooms()>Back</button>`)}
+let DH=[];
+function join(){const room=$('#r').value.trim().toUpperCase().slice(0,20);if(!room)return;DH=[];DN=S.guest?'':S.name;
+ ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws/duel?room='+encodeURIComponent(room)+(S.guest?'':'&tok='+encodeURIComponent(S.tok)));
+ R(`<h2>⚔️ Arena ${esc(room)}</h2><div id=pl></div><div id=ar class="card center"></div><p id=dm class=center></p><div class=card id=cards><small>Joining the arena…</small></div><div class=card id=inc hidden></div><p id=lg class=center></p><div id=rm></div><button class="wide ghost" onclick="ws.close();rooms()">Leave</button>`);arena('');
+ ws.onclose=()=>{const e=$('#dm');if(e)e.textContent='Disconnected from the arena.'};ws.onmessage=e=>dmsg(JSON.parse(e.data))}
+function dmsg(m){const dm=t=>{const e=$('#dm');if(e)e.textContent=t};if(!$('#pl'))return;
+ if(m.pl)$('#pl').innerHTML=m.pl.map(p=>`${esc(p.n)} ❤️${Math.max(0,p.hp)}<div class=bar><i style="width:${Math.max(0,p.hp)}%"></i></div>`).join('');
+ if(m.t=='you')DN=m.n;
+ if(m.t=='locked'){alert('The Duel Arena is sealed by your teacher for now.');ws.close();return rooms()}
+ if(m.t=='dup'){alert('You are already in the arena on another tab or device.');ws.close();return rooms()}
+ if(m.t=='hand'){DH=m.c;dcards()}
+ if(m.t=='wait')dm('Waiting for an opponent to join…');
+ if(m.t=='res'){if(m.slow)return dm('Take your time, wizard!');if(m.ok){sfx('ok');arena('ok');dm('✨ Spell cast! A cursed word flies at your foe.')}
+  else{sfx('no');buzz(60);const f=$('#f');if(f)f.innerHTML=m.fizzled?`<span class=bad>Fizzled! It was <b>${esc(m.word)}</b>. ${esc(m.hint)}</span>`:`<span class=bad>Fizzle! ${esc(m.hint)} (${m.left} left)</span>`;if(m.fizzled)arena('no');const a=$('#a');if(a&&!m.fizzled){a.value='';a.focus()}}}
+ if(m.t=='fx'){S.xp=m.xp;S.modes=m.modes;save();fx(m);if(m.gain)dm('✨ +'+m.gain+' XP')}
+ if(m.log){$('#lg').textContent=m.log;if(m.who&&m.who==DN){arena(m.ok?'ok':'no');sfx(m.ok?'ok':'no')}}
+ if(m.t=='incoming'){arena('in');sfx('no');const i=$('#inc');i.hidden=false;i.innerHTML=`🛡️ ${esc(m.from)} cast a curse! Find and fix the misspelling to deflect:<p>${esc(m.pre)}<b class=bad>${esc(m.bad)}</b>${esc(m.post)}</p><input id=d class=ans ${AI}><button id=dg class=wide>Deflect!</button>`;$('#d').focus();$('#dg').onclick=()=>{ws.send(JSON.stringify({t:'deflect',a:$('#d').value}));i.hidden=true;i.innerHTML=''}}
+ if(m.t=='win'){$('#lg').textContent='🏆 '+m.n+' wins!';arena(m.n==DN?'ok':'no');if(m.n==DN){confetti();sfx('lvl')}$('#cards').innerHTML='';$('#rm').innerHTML='<button class="wide big" onclick="ws.send(JSON.stringify({t:\'again\'}))">⚔️ Rematch</button>'}
+ if(m.t=='again'){$('#rm').innerHTML='';$('#lg').textContent=m.log}}
+function dcards(){$('#cards').innerHTML='<div class=row>'+['🔥 Fireball','❄️ Frost Bolt','⚡ Lightning'].map((n,i)=>`<button onclick=pickCard(${i})>${n}</button>`).join('')+'</div>'}
+function pickCard(i){say(DH[i]);$('#cards').innerHTML=`Spell the word you hear: <input id=a class=ans ${AI}><span class=row><button id=go>Cast!</button><button class=ghost onclick="say(DH[${i}])">🔊</button><button class=ghost onclick="say(DH[${i}],.5)">🐢</button><button class=ghost onclick=dcards()>Back</button></span><p id=f></p>`;$('#a').focus();
+ $('#a').onkeydown=e=>e.key=='Enter'&&$('#go').click();$('#go').onclick=()=>ws.send(JSON.stringify({t:'cast',i,a:$('#a').value}))}
