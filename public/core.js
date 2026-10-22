@@ -5,6 +5,8 @@ const R=(h,tab,tabs=NAVT)=>{app.innerHTML=h;nav.className=tab?'on':'';if(tab)nav
 let S=JSON.parse(localStorage.S||'{}'),words=[],focus='acc',timer,cur,hand,ws,P=null,combo=0;
 const save=()=>localStorage.S=JSON.stringify(S);
 const api=(p,b)=>fetch('/api/'+p,{method:b?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+S.tok},body:b&&JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Connection problem. Please try again.'}));
+// Enter-key helper: must NOT return a value (returning false from an on* handler cancels the keystroke)
+const onEnter=fn=>e=>{if(e.key=='Enter')fn()};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
 const say=(t,r=.8)=>{try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';u.rate=r;speechSynthesis.speak(u)}catch{}};
 const sayS=()=>say(cur.s.replace('{w}',cur.w));
