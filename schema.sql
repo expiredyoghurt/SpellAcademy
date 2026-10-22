@@ -4,7 +4,7 @@ create table if not exists students(id integer primary key autoincrement,name te
 create table if not exists lists(id integer primary key autoincrement,code text,name text,words text,owner integer,levels text default '[]',shared text default '[]',declined text default '[]');
 create table if not exists attempts(id integer primary key autoincrement,student_id integer,mode text,word text,ok integer,tries integer,ms integer,xp integer,ts integer default (unixepoch()),ans text);
 create index if not exists a_s on attempts(student_id);
-create table if not exists runs(id integer primary key autoincrement,student_id integer,hearts integer,correct integer,cur text,status text default 'active',ts integer default (unixepoch()));
+create table if not exists runs(id integer primary key autoincrement,student_id integer,hearts integer,correct integer,cur text,status text default 'active',peak integer default 0,deaths integer default 0,ts integer default (unixepoch()));
 create table if not exists class_lists(code text,list text,primary key(code,list));
 create table if not exists badges(student_id integer,badge text,ts integer default (unixepoch()),primary key(student_id,badge));
 create index if not exists a_st on attempts(student_id,ts);

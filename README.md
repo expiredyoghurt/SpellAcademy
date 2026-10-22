@@ -59,7 +59,17 @@ The Great Grimoire of Aldermere once held every word in perfect order, until the
 - ✏️ **Mending Workshop** (mode 2): repair a spell the Wraiths twisted. Unlocks at Lv10.
 - 🔍 **Curse-Breaking Tower** (mode 3): spot the cursed words, then break each curse. Unlocks at Lv20.
 - ⚔️ **Duel Arena**: apprentices hurl cursed words at each other and deflect them. Open from Lv1.
-- 🕳️ **Wraith Dungeon** (solo): start with 3 hearts, lose one for each word you fail after 3 attempts. Random events can heal a heart (up to 5) or drop bonus XP. The run ends after 100 correct answers (+100 XP) or at 0 hearts. Words you have missed before appear more often. Limits per run: hearts never exceed 5, at most 3 heals, 6 random events and 1,500 XP (change `HEAL_MAX`, `EV_MAX`, `RUN_XP_CAP` at the top of `src/worker.js`). Unlocks at Lv5 and can be locked by teachers like other rooms.
+- 🕳️ **Wraith Dungeon** (solo): 100 Wraiths over 10 floors, each with its own story chapter and a spelling tip. Start with 3 hearts and lose one for each word you fail after 3 attempts. Random events can heal a heart (up to 5) or drop bonus XP. The run ends after 100 correct answers (+100 XP). See *Dungeon checkpoints* below. Words you have missed before appear more often. Limits per run: hearts never exceed 5, at most 3 heals, 6 random events and 1,500 XP (change `HEAL_MAX`, `EV_MAX`, `RUN_XP_CAP` at the top of `src/worker.js`). Unlocks at Lv5 and can be locked by teachers like other rooms.
+
+### Dungeon checkpoints (v2.2)
+Every 10 Wraiths silenced (10, 20 … 90) is a checkpoint, and the story moves on to the next floor. When the pupil loses all their hearts they are not out yet: they wake at the start of the floor they fell on with one heart fewer.
+- Start: 3 hearts. After the 1st fall: back at the last checkpoint with **2** hearts. After the 2nd fall: back at the last checkpoint with **1** heart. After the 3rd fall: thrown out of the dungeon, and the next descent starts again from Floor 1 with 3 hearts.
+- A fall before the first checkpoint sends the pupil back to the very start of the run (with fewer hearts).
+- XP already earned is kept. The per-run limits (heals, random events, 1,500 XP) cover the whole run including replayed floors, so replaying a floor cannot farm unlimited XP.
+- Leaving the dungeon and starting again always begins a new run from Floor 1.
+- The teacher dashboard's dungeon best counts the furthest point reached in a run, not where the pupil restarted from.
+- The word timer restarts when the pupil taps through a story screen, so reading never costs the speed bonus.
+- To change the starting hearts or the floor size, edit `START_HEARTS` and `FLOOR` at the top of `src/worker.js`. The 10 chapters live in the `DST` list in `public/player.js` (keep `FLOOR` at 10, or add or remove chapters to match).
 
 ## Pupil experience (v2)
 Pupils land on a **Home** screen with a bottom tab bar (a top bar on tablets and desktops): **Home**, **Rooms**, **Spellbook** and **Me**.
@@ -91,7 +101,7 @@ Duels are now checked by the server. It deals each player three words, marks eve
 The login screen has a **Play as guest** button. Guests play Echo Hall, Mending Workshop, Curse-Breaking Tower and the Duel Arena with the built-in words. Their XP is not saved, teachers do not see them in analytics, and the Wraith Dungeon needs a real account. To hide the button, set `GUEST=false` at the top of the script in `public/index.html`.
 
 ## Upgrading from the first version
-Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then commit the new files to GitHub.
+Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then `migrations/009_checkpoints.sql` (dungeon checkpoints, v2.2; run it BEFORE deploying v2.2), then commit the new files to GitHub.
 
 ## Word lists
 Seven lists are built in: **Default** (the original mixed list, used by guests), and **Primary 1** to **Primary 6**. All six levels are written with 100 words each (600 in total), and no word appears in more than one built-in list (Default included). To add words, append lines to the matching list in this file, or have teachers create custom lists in the dashboard. They live in `src/words.js`, one `word|sentence with {w}|clue` per line.

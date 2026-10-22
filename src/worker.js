@@ -9,6 +9,7 @@ async function verify(env,t){try{const[m,s]=t.split('.');return s===await hmac(e
 async function hash(pw,salt){const k=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveBits']);return b64(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},k,256))}
 const lvl=x=>Math.floor(x/150)+1;
 const HEAL_MAX=3,EV_MAX=6,RUN_XP_CAP=1500; // per dungeon run: max heals, max random events, max XP
+const START_HEARTS=3,FLOOR=10; // dungeon: hearts at the start (each fall returns the pupil to the last checkpoint with one fewer; the run ends after START_HEARTS falls) and correct answers per floor/checkpoint (the app has 10 story chapters, so keep FLOOR=10 unless you add chapters)
 const GATE={1:1,2:10,3:20,4:5,d:1},MM={1:'1',2:'2',spot1:'3',spot2:'3',duel:'d'};
 const un=(s,m,xp)=>{const v=(s.modes||{})[m]||'auto';return v==='open'||(v==='auto'&&lvl(xp)>=GATE[m])};
 const ms=(s,xp)=>Object.fromEntries(Object.keys(GATE).map(m=>[m,un(s,m,xp)||((s.modes||{})[m]==='locked'?'L':GATE[m])]));
@@ -88,19 +89,24 @@ if(p==='/api/admin/pending'||p==='/api/admin/review'||p==='/api/admin/dedupe'){i
 if(St&&p==='/api/me'){const m=await D.prepare('select xp from students where id=?').bind(a.id).first();return J({xp:m.xp,modes:ms(await cs(a.code),m.xp)})}
 if(St&&p==='/api/run/start'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!un(await cs(a.code),'4',x0.xp))return J({error:'locked'},403);
  await D.prepare("update runs set status='abandoned' where student_id=? and status='active'").bind(a.id).run();
- const ch=await mkch(a),r=await D.prepare('insert into runs(student_id,hearts,correct,cur) values(?,3,0,?)').bind(a.id,JSON.stringify(ch.cur)).run();
- return J({run:r.meta.last_row_id,hearts:3,correct:0,ch:ch.pub})}
+ const ch=await mkch(a),r=await D.prepare('insert into runs(student_id,hearts,correct,peak,deaths,cur) values(?,?,0,0,0,?)').bind(a.id,START_HEARTS,JSON.stringify(ch.cur)).run();
+ return J({run:r.meta.last_row_id,hearts:START_HEARTS,correct:0,deaths:0,ch:ch.pub})}
+if(St&&p==='/api/run/ready'){await D.prepare("update runs set cur=json_set(cur,'$.t',?) where id=? and student_id=? and status='active'").bind(Date.now(),b.run|0,a.id).run();return J({ok:1})} // restarts the answer timer after a story screen, so reading never costs the speed bonus
 if(St&&p==='/api/run/answer'){const r=await D.prepare("select * from runs where id=? and student_id=? and status='active'").bind(b.run|0,a.id).first();if(!r)return J({error:'No active run'},400);
  const cur=JSON.parse(r.cur);cur.n++;const ok=String(b.a||'').trim().toLowerCase()===cur.w;
  if(!ok&&cur.n<3){await D.prepare('update runs set cur=? where id=?').bind(JSON.stringify(cur),r.id).run();return J({res:'retry',hint:cur.n==1?`It starts with "${cur.w[0]}" and has ${cur.w.length} letters.`:`${cur.h} It begins "${cur.w.slice(0,Math.ceil(cur.w.length/2))}…"`})}
- const t=Date.now()-cur.t;let hearts=r.hearts,correct=r.correct,g=gain(ok,cur.n,t,b.focus),event=null;
- if(ok){correct++;const e=Math.random();if((cur.e|0)<EV_MAX){if(e<.12){if(hearts<5&&(cur.h|0)<HEAL_MAX){hearts++;cur.h=(cur.h|0)+1;cur.e=(cur.e|0)+1;event='🧪 A healing fountain restores a heart!'}}else if(e<.2){g+=15;cur.e=(cur.e|0)+1;event='💎 You find a crystal cache: +15 XP!'}}}else hearts--;
- const end=hearts<=0?'dead':correct>=100?'win':null;if(end==='win')g+=100;
+ const t=Date.now()-cur.t;let hearts=r.hearts,correct=r.correct,deaths=r.deaths|0,peak=Math.max(r.peak|0,r.correct),old=peak,g=gain(ok,cur.n,t,b.focus),event=null;
+ if(ok){correct++;peak=Math.max(peak,correct);const e=Math.random();if((cur.e|0)<EV_MAX){if(e<.12){if(hearts<5&&(cur.hl|0)<HEAL_MAX){hearts++;cur.hl=(cur.hl|0)+1;cur.e=(cur.e|0)+1;event='🧪 A healing fountain restores a heart!'}}else if(e<.2){g+=15;cur.e=(cur.e|0)+1;event='💎 You find a crystal cache: +15 XP!'}}}else hearts--;
+ let end=null,back=null;
+ if(hearts<=0){deaths++;if(deaths>=START_HEARTS)end='dead';else{correct=Math.floor(correct/FLOOR)*FLOOR;hearts=START_HEARTS-deaths;back={to:correct,hearts}}} // a fall: back to the last checkpoint with one heart fewer (XP already earned is kept)
+ else if(correct>=100)end='win';
+ const cp=ok&&!end&&correct%FLOOR==0?{n:correct,fresh:correct>old}:null; // checkpoint reached (fresh = first time this run, so the story is only told once)
+ if(end==='win')g+=100;
  const room=Math.max(0,RUN_XP_CAP-(cur.x|0)),capped=g>room;g=Math.min(g,room);cur.x=(cur.x|0)+g;
- const ch=end?null:await mkch(a);if(ch){ch.cur.h=cur.h|0;ch.cur.e=cur.e|0;ch.cur.x=cur.x|0}
- await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans) values(?,?,?,?,?,?,?,?)').bind(a.id,'dun-'+cur.k,cur.w,ok?1:0,cur.n,t,g,ok?null:clean(b.a)),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),D.prepare('update runs set hearts=?,correct=?,cur=?,status=? where id=?').bind(hearts,correct,ch?JSON.stringify(ch.cur):r.cur,end?(end=='win'?'won':'dead'):'active',r.id)]);
+ const ch=end?null:await mkch(a);if(ch){ch.cur.hl=cur.hl|0;ch.cur.e=cur.e|0;ch.cur.x=cur.x|0}
+ await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans) values(?,?,?,?,?,?,?,?)').bind(a.id,'dun-'+cur.k,cur.w,ok?1:0,cur.n,t,g,ok?null:clean(b.a)),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),D.prepare('update runs set hearts=?,correct=?,cur=?,status=?,peak=?,deaths=? where id=?').bind(hearts,correct,ch?JSON.stringify(ch.cur):r.cur,end?(end=='win'?'won':'dead'):'active',peak,deaths,r.id)]);
  const s=await D.prepare('select xp from students where id=?').bind(a.id).first();
- const pg=await progress(D,{id:a.id,xp:s.xp});return J({res:ok?'ok':'fail',word:ok?undefined:cur.w,tip:cur.h,gain:g,capped,event,hearts,correct,end,ch:ch&&ch.pub,xp:s.xp,modes:ms(await cs(a.code),s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0})}
+ const pg=await progress(D,{id:a.id,xp:s.xp});return J({res:ok?'ok':'fail',word:ok?undefined:cur.w,tip:cur.h,gain:g,capped,event,hearts,correct,deaths,peak,back,cp,end,ch:ch&&ch.pub,xp:s.xp,modes:ms(await cs(a.code),s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0})}
 if(St&&p==='/api/lists')return J(await bankFor(a.code));
 if(St&&p==='/api/attempt'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first(),set=await cs(a.code);if(!un(set,MM[b.mode],x0.xp))return J({error:'locked'},403);const g=gain(b.ok,b.tries,b.ms,b.focus);
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans) values(?,?,?,?,?,?,?,?)').bind(a.id,String(b.mode),String(b.word),b.ok?1:0,b.tries|0,b.ms|0,g,b.ok?null:clean(b.ans)),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id)]);
@@ -157,7 +163,7 @@ if(T){
    D.prepare("select word,count(*) n,sum(1-ok) miss from attempts where student_id=? and mode!='spot1' group by word having sum(1-ok)>0 order by sum(1-ok) desc,count(*) desc limit 10").bind(id),
    D.prepare("select word,ans,count(*) c from attempts where student_id=? and ok=0 and ans is not null and ans!='' group by word,ans order by c desc").bind(id),
    D.prepare("select mode,count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode!='spot1' group by mode").bind(id),
-   D.prepare("select coalesce(max(correct),0) best,count(*) runs from runs where student_id=?").bind(id),
+   D.prepare("select coalesce(max(max(correct,coalesce(peak,0))),0) best,count(*) runs from runs where student_id=?").bind(id),
    D.prepare("select count(*) n from badges where student_id=?").bind(id),
    D.prepare(MASTER_CTE+"select count(*) n from (select word from r where rn<=3 group by word having count(*)=3 and sum(ok)=3)").bind(id)]);
   const rows=r[1].results,wr={};r[3].results.forEach(x=>(wr[x.word]=wr[x.word]||[]).push({a:x.ans,c:x.c}));const t=r[0].results[0];
@@ -165,7 +171,7 @@ if(T){
  if(p==='/api/analytics'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await D.prepare('select 1 from classes where code=? and teacher_id=?').bind(c,a.id).first())return J({error:'Not your class'},403);
   const st=await D.prepare('select s.name,s.xp,count(a.id) n,coalesce(sum(a.ok),0) ok,coalesce(avg(a.ms),0) ms from students s left join attempts a on a.student_id=s.id where s.code=? group by s.id').bind(c).all();
   const wd=await D.prepare('select a.word,count(*) n,sum(1-a.ok) miss from attempts a join students s on s.id=a.student_id where s.code=? group by a.word order by miss desc limit 10').bind(c).all();
-  const dg=await D.prepare('select s.name,max(r.correct) best,count(r.id) runs from runs r join students s on s.id=r.student_id where s.code=? group by s.id').bind(c).all();
+  const dg=await D.prepare('select s.name,max(max(r.correct,coalesce(r.peak,0))) best,count(r.id) runs from runs r join students s on s.id=r.student_id where s.code=? group by s.id').bind(c).all();
   return J({students:st.results,words:wd.results,dungeon:dg.results})}}
 return J({error:'Not found or not signed in'},404)}};
 
