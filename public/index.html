@@ -1,135 +1,14 @@
-<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Spell Academy</title>
-<style>
-:root{--a:#8b5cf6}body[data-t=ember]{--a:#f97316}body[data-t=frost]{--a:#06b6d4}body[data-t=gold]{--a:#eab308}
-body{margin:0;font:18px system-ui;background:#1b1633;color:#f3efff;display:flex;justify-content:center}
-#app{width:100%;max-width:640px;padding:16px}
-button,input,select,textarea{font:inherit;padding:10px 14px;border-radius:10px;border:2px solid var(--a);background:#2a2250;color:inherit;margin:4px;max-width:90%}
-button{background:var(--a);cursor:pointer;color:#fff;font-weight:700}
-.card{background:#2a2250;border-radius:14px;padding:14px;margin:10px 0}
-.bar{height:12px;background:#0006;border-radius:6px}.bar i{display:block;height:100%;background:var(--a);border-radius:6px}
-.w{cursor:pointer;padding:2px 4px;border-radius:6px;border-bottom:2px dotted #fff8}.w.sel{background:var(--a)}
-.bad{color:#fca5a5}.ok{color:#86efac}h1,h2{margin:.3em 0}table{width:100%;font-size:15px}
-@keyframes pop{50%{transform:scale(1.3)}}@keyframes shk{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}@keyframes fade{to{opacity:.15;transform:scale(.6)}}.fx{display:inline-block}@media(prefers-reduced-motion:reduce){.fx{animation:none!important}}
-#pr{display:none;width:100%}@media print{#app{display:none!important}#pr{display:grid;grid-template-columns:1fr 1fr;gap:8mm}body{background:#fff;color:#000;display:block}.pc{border:2px dashed #444;padding:6mm;break-inside:avoid;color:#000;font-size:14pt}}
-</style>
-<div id=app></div><div id=pr></div>
-<script>
-const W=`necessary|It is {w} to wear a helmet when cycling.|One collar (c), two sleeves (ss).
-separate|Please {w} the plastic from the paper.|There is "a rat" in sep-a-rat-e.
-beautiful|The orchids at Gardens by the Bay are {w}.|beau + ti + ful.
-because|I stayed home {w} it was raining.|Big Elephants Can Always Understand Small Elephants.
-friend|A true {w} will always help you.|fri-END: a friend is there at the end.
-believe|I {w} you can win the spelling bee.|Never believe a lie: "lie" is inside.
-receive|Did you {w} my message?|i before e, except after c.
-environment|We must protect our {w}.|en-vi-RON-ment: "iron" is hiding inside.
-government|The {w} built new parks.|govern + ment.
-library|We borrow books from the {w}.|li-BRAR-y: the r after the b.
-February|Chinese New Year is often in {w}.|Feb-RU-ary: there is an r before the u.
-Wednesday|We have PE on {w}.|Wed-nes-day: say it out loud as written.
-restaurant|We ate dinner at a {w}.|rest-au-rant.
-neighbour|Our {w} waters the plants.|neigh + bour (British spelling).
-exercise|Daily {w} keeps you healthy.|ex-er-CISE: ends in -cise.
-language|Learning a new {w} is fun.|"gu" like in guard.
-adventure|They went on a jungle {w}.|ad-ven-ture: ends in -ture.
-knowledge|Reading builds {w}.|Silent k: know + ledge.
-embarrass|Do not {w} your friends.|Two r's and two s's.
-guarantee|The shop will {w} the quality.|g-u-a-r-a-n-tee.
-disappear|The magician made the coin {w}.|dis + appear: appear has pp.
-immediately|Come here {w}!|im-me-di-ate-ly: double m.
-interesting|The story was very {w}.|inter + est + ing.
-vegetable|Eat a {w} every day.|veg-e-ta-ble.
-chocolate|I love hot {w}.|choc-o-late: 3 syllables.
-temperature|The {w} today is 33 degrees.|tem-per-a-ture: "era" inside.
-thought|I {w} about it all night.|ough says "aw".
-weather|The {w} is sunny.|w + EAT + her.
-island|Sentosa is an {w}.|Silent s.
-tomorrow|We will visit the zoo {w}.|One m, two r's.`;
-const GUEST=true; // set false to hide the guest button
-const $=s=>document.querySelector(s),app=$('#app'),R=h=>app.innerHTML=h;
-let S=JSON.parse(localStorage.S||'{}'),words=[],focus='acc',timer,cur,hand,ws;
-const api=(p,b)=>fetch('/api/'+p,{method:b?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+S.tok},body:b&&JSON.stringify(b)}).then(r=>r.json());
-const say=t=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';u.rate=.8;speechSynthesis.speak(u)};
-const sayS=()=>say(cur.s.replace('{w}',cur.w));
-const mis=w=>{const i=1+Math.floor(Math.random()*(w.length-2)),r=w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);return r===w?w.slice(0,i)+w[i]+w.slice(i):r};
-const pick=n=>[...words].sort(()=>Math.random()-.5).slice(0,n);
-const TT=['Apprentice','Novice','Adept','Sorcerer','Archmage'],TH=['','ember','frost','gold','gold'],lv=x=>Math.floor(x/150)+1;
-const UN=[[5,'Ember wand theme'],[5,'Wraith Dungeon'],[10,'Frost wand theme'],[10,'Mending Workshop'],[15,'Gold wand theme'],[20,'Curse-Breaking Tower']];
-const RC=['#7c3aed','#ea580c','#0891b2','#ca8a04','#be123c'],rob=()=>{const c=RC[Math.min(4,Math.floor(lv(S.xp||0)/5))];return{h:c,r:c}};
-const PAL={f:'#f5c9a0',e:'#222',b:'#432',w:'#fff',k:'#111',m:'#3b0764',c:'#38bdf8',p:'#a855f7'};
-const SP={wiz:['...hhhh...','..hhhhhh..','.hhhhhhhh.','...ffff...','...fefe...','...ffff...','..rrrrrr..','.rrrrrrrr.','.rrrrrrrr.','.rrrrrrrr.','.rr....rr.','.bb....bb.'],
-wr:['...gggg...','..gggggg..','.gwkggwkg.','.gwwggwwg.','.gggggggg.','.gggmmggg.','.gggggggg.','.gg.gg.gg.','.g..gg..g.'],
-wizc:['...hhhh...','..hhhhhh..','.hhhhhhhh.','...ffff...','...fefe...','...ffff...','..rrrrrr..','.rrrrrrrff','.rrrrrrrr.','.rrrrrrrr.','.rr....rr.','.bb....bb.'],
-wrh:['...gggg...','..gggggg..','.gkkggkkg.','.gggggggg.','.gggggggg.','.ggmmmmgg.','.gggggggg.','.gg.gg.gg.','.g..gg..g.'],
-heart:['.rr.rr.','rrrrrrr','rrrrrrr','.rrrrr.','..rrr..','...r...'],potion:['..cc..','..cc..','.pppp.','pppppp','pppppp','.pppp.']},_c={};
-function spr(n,pal={},sc=5){const g=SP[n],P={...PAL,...pal},k=n+JSON.stringify(pal);if(!_c[k]){const c=document.createElement('canvas');c.width=g[0].length;c.height=g.length;const x=c.getContext('2d');g.forEach((row,y)=>[...row].forEach((ch,i)=>{if(ch!='.'){x.fillStyle=P[ch];x.fillRect(i,y,1,1)}}));_c[k]=c.toDataURL()}return `<img src="${_c[k]}" style="width:${g[0].length*sc}px;image-rendering:pixelated">`}
-const esc=t=>String(t).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
-function hdr(){const l=lv(S.xp),r=Math.min(4,Math.floor(l/5)),nx=UN.find(u=>u[0]>l);document.body.dataset.t=TH[r];
- return `<h2>${spr('wiz',rob(),3)} ${esc(S.name||'')} · ${TT[r]} Lv${l}</h2><div class=bar><i style="width:${S.xp%150/1.5}%"></i></div><small>${S.xp} XP · ${nx?'Next unlock: '+nx[1]+' at Lv'+nx[0]:'Keeper of the Grimoire: everything unlocked'}</small>`}
-function login(){R(`<h1>🔮 Spell Academy</h1><div class=card><small>The Great Grimoire of Aldermere once held every word in perfect order, until the Misspell Wraiths crept in and twisted its letters. Now spells fizzle across the land. You are a new apprentice at Aldermere Academy. Restore the Grimoire one word at a time, rise through the ranks, and learn to break the Wraiths' curses.</small></div><div class=card><input id=n placeholder="Your name"><input id=c placeholder="Class code"><button onclick=doLogin()>Enter the Academy</button><p id=e class=bad></p></div>${GUEST?'<button onclick=guest()>🎭 Play as guest</button>':''}<button onclick=teacher()>Teacher / Admin</button>`)}
-async function doLogin(){const r=await api('login',{name:$('#n').value,code:$('#c').value});if(r.error)return $('#e').textContent=r.error;S=r;localStorage.S=JSON.stringify(S);await load();menu()}
-async function load(){words=W.split('\n').map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}));try{if(S.guest)return;const c=await api('lists');if(Array.isArray(c))words=words.concat(c);const me=await api('me');if(me.modes){S.modes=me.modes;S.xp=me.xp}}catch{}}
-const MD=[['1','🎧 Echo Hall','Hear the Grimoire whisper a word, then write it down.'],['2','✏️ Mending Workshop','Repair a spell the Wraiths have twisted.'],['3','🔍 Curse-Breaking Tower','Hunt the cursed words, then break each curse.'],['4','🕳️ Wraith Dungeon','Descend with 3 hearts. Clear 100 answers to beat the dungeon!'],['d','⚔️ Duel Arena','Rival apprentices hurl cursed words. Deflect them!']];
-const go=k=>k=='d'?duel():k=='4'?dstart():play(+k);
-function menu(){const m=S.modes||{};R(hdr()+(S.guest?'<small>🎭 Guest play: progress is not saved.</small>':'')+`<div class=card><b>Focus</b> <select onchange="focus=this.value"><option value=acc>Accuracy (no timer)</option><option value=spd ${focus=='spd'?'selected':''}>Speed (20s timer)</option></select></div>`+MD.map(([k,n,d])=>m[k]===true?`<div class=card><button onclick="go('${k}')">${n}</button><br><small>${d}</small></div>`:`<div class=card style="opacity:.55">🔒 <b>${n}</b><br><small>${m[k]==='L'?(S.guest?'Log in with your class code to enter.':'Sealed by your teacher for now.'):'Unlocks at Lv'+m[k]+'.'}</small></div>`).join('')+`<button onclick=logout()>Leave</button>`)}
-function logout(){S={};localStorage.S='{}';login()}
-async function guest(){S={guest:1,name:'Guest',xp:0,modes:{1:true,2:true,3:true,4:'L',d:true}};await load();menu()}
-async function report(it,mode,ok,tries,ms){if(S.guest){const g=!ok?1:Math.round(([0,10,6,3][tries]||3)+Math.max(0,1-ms/20000)*(focus=='spd'?15:5));S.xp+=g;return g}const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus});if(r.error){alert('This room has been sealed by your teacher.');return 0}S.xp=r.xp;S.modes=r.modes;localStorage.S=JSON.stringify(S);return r.gain}
-async function play(m){const b4={...S.modes};let tot=0;const n=m==3?2:6;for(let i=0;i<n;i++)tot+=m==3?await spot():await single(pick(1)[0],m,i+1,n);const nu=MD.filter(x=>S.modes[x[0]]===true&&b4[x[0]]!==true).map(x=>x[1]);R(hdr()+`<div class=card><h2>The Grimoire glows brighter! +${tot} XP</h2>${nu.length?'<p>🔓 New room unlocked: <b>'+nu.join(', ')+'</b></p>':''}</div><button onclick=menu()>Back to the Academy</button>`)}
-function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol();let tries=0,t0=Date.now(),left=20;
- const sc=it.s.replace('{w}',mode==2?`<b class=bad>${shown||mis(it.w)}</b> <input id=a size=12>`:'_____');
- R(hdr()+`<div id=sp class=card style=text-align:center>${spr('wiz',rob(),4)} ${spr('wr',{g:SPW},4)}</div><div class=card>Spell ${i}/${n} <span id=tm></span><p>${mode==1?'<button onclick="say(cur.w)">🔊 Hear word</button><button onclick=sayS()>🔊 In a sentence</button><br><input id=a>':sc}</p><button id=go>Cast!</button><p id=f></p></div>`);
- const fin=async ok=>{clearInterval(timer);react(ok?'ok':'no');const g=await report(it,tag||mode,ok,tries,Date.now()-t0);$('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP</span>`:`<span class=bad>The word is <b>${it.w}</b>. 📖 ${it.h}</span>`)+'<br><button id=nx>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g)};
- $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);
-  react('no');$('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?`It starts with "${it.w[0]}" and has ${it.w.length} letters.`:`${it.h} It begins "${it.w.slice(0,Math.ceil(it.w.length/2))}…"`)+` (${3-tries} left)</span>`;$('#a').select()};
- $('#a').onkeydown=e=>e.key=='Enter'&&$('#go').click();$('#a').focus();
- if(focus=='spd')timer=setInterval(()=>{$('#tm').textContent='⏱'+--left;if(left<=0){tries=3;fin(false)}},1000);
- if(mode==1)say(it.w)})}
-function spotFx(bad,sel){const hit=[...bad].filter(i=>sel.has(i)).length,fp=[...sel].filter(i=>!bad.has(i)).length,good=hit==bad.size&&!fp;
- R(hdr()+`<div class=card style=text-align:center><span class=fx style="animation:${good?'pop':'shk'} .5s">${spr(good?'wizc':'wiz',rob(),5)}</span> ${[...bad].map(i=>`<span class=fx style="animation:${sel.has(i)?'fade 1s forwards':'shk .5s'}">${spr(sel.has(i)?'wrh':'wr',{g:wcol()},4)}</span>`).join(' ')}<p>${hit}/${bad.size} cursed words found${fp?`, ${fp} false alarm${fp>1?'s':''}`:''}. Now break each curse!</p><button id=nx>Continue</button></div>`);return new Promise(r=>$('#nx').onclick=r)}
-async function spot(){const it=pick(4),bad=new Set();while(bad.size<2)bad.add(Math.floor(Math.random()*4));
- const sh=it.map((x,i)=>bad.has(i)?mis(x.w):x.w),sel=new Set(),t0=Date.now();let g=0;
- R(hdr()+`<div class=card><b>Tap the misspelled words, then submit.</b><p>${it.map((x,i)=>x.s.replace('{w}',`<span class=w data-i=${i}>${sh[i]}</span>`)).join(' ')}</p><button id=go>Submit</button></div>`);
- document.querySelectorAll('.w').forEach(e=>e.onclick=()=>{const i=+e.dataset.i;sel.has(i)?sel.delete(i):sel.add(i);e.classList.toggle('sel')});
- await new Promise(r=>$('#go').onclick=r);
- for(let i=0;i<4;i++)g+=await report(it[i],'spot1',sel.has(i)==bad.has(i),1,(Date.now()-t0)/4);
- await spotFx(bad,sel);
- let k=0;for(const i of bad)g+=await single(it[i],2,++k,bad.size,sh[i],'spot2');return g}
-let DG,DN,SPW='#9ca3af';const wcol=()=>['#9ca3af','#a78bfa','#34d399','#fb923c'][Math.floor(Math.random()*4)];
-function arena(k){const e=$('#ar');if(!e)return;e.innerHTML=`<span class=fx style="animation:${{ok:'pop',no:'shk',in:'shk'}[k]||'none'} .5s">${spr(k=='ok'?'wizc':'wiz',rob(),5)}</span> ${k=='in'?spr('wr',{g:wcol()},5):k=='ok'?'<span class=fx style="animation:fade 1s forwards">'+spr('wrh',{g:SPW},5)+'</span>':''}`}
-function react(k){const e=$('#sp');if(!e)return;e.innerHTML=k=='ok'?`<span class=fx style="animation:pop .6s">${spr('wizc',rob(),4)}</span> <span class=fx style="animation:fade 1s forwards">${spr('wrh',{g:SPW},4)}</span>`:`<span class=fx style="animation:shk .4s">${spr('wiz',rob(),4)}</span> ${spr('wr',{g:SPW},5)}`}
-async function dstart(){const r=await api('run/start',{});if(r.error)return alert('The dungeon is sealed.');DG={run:r.run,tot:0};dshow(r,'')}
-function dshow(r,msg,kd){DG.ch=r.ch;const ch=r.ch,wc=['#9ca3af','#a78bfa','#34d399','#fb923c'][r.correct%4];
- R(`<div class=card>${Array.from({length:5},(_,i)=>spr('heart',{r:i<r.hearts?'#ef4444':'#475569'},4)).join(' ')}<span style=float:right>${r.correct}/100</span><div class=bar><i style="width:${r.correct}%"></i></div></div><div class=card style=text-align:center><span class=fx style="animation:${kd=='ok'?'pop':kd=='no'?'shk':'none'} .5s">${spr(kd=='ok'?'wizc':'wiz',rob(),6)}</span>&nbsp;&nbsp;&nbsp;${spr('wr',{g:wc},6)}<p>${msg||'A Wraith blocks the way!'}</p></div><div class=card>${ch.k=='ear'?'<button onclick="say(DG.ch.w)">🔊 Hear word</button><button onclick="say(DG.ch.sn)">🔊 In a sentence</button><br><input id=a>':ch.s.replace('{w}',`<b class=bad>${esc(ch.sh)}</b> <input id=a size=12>`)}<button id=go>Cast!</button><p id=f></p></div>`);
- if(ch.k=='ear')say(ch.w);$('#a').onkeydown=e=>e.key=='Enter'&&$('#go').click();$('#a').focus();
- $('#go').onclick=async()=>{const x=await api('run/answer',{run:DG.run,a:$('#a').value,focus});if(x.error)return menu();S.xp=x.xp;S.modes=x.modes;DG.tot+=x.gain||0;
-  if(x.res=='retry'){$('#f').innerHTML='<span class=bad>Not quite! '+esc(x.hint)+'</span>';$('#a').select();return}
-  const m=(x.res=='ok'?'✨ Correct! +'+x.gain+' XP':'💔 The word is <b>'+esc(x.word)+'</b>. 📖 '+esc(x.tip))+(x.capped?'<br>⭐ XP cap for this run reached.':'')+(x.event?'<br>'+(x.event.includes('heart')?spr('potion',{},4)+' ':'')+x.event:'');
-  x.end?dend(x,m):dshow(x,m,x.res=='ok'?'ok':'no')}}
-function dend(x,m){R(hdr()+`<div class=card style=text-align:center>${spr('wiz',rob(),6)}<h2>${x.end=='win'?'🏆 You cleared the dungeon!':'The Wraiths overwhelm you…'}</h2><p>${m}</p><p>Answers: ${x.correct}/100 · XP this run: ${DG.tot}</p></div><button onclick=dstart()>Descend again</button><button onclick=menu()>Back to the Academy</button>`)}
-function duel(){R(hdr()+`<div class=card>Share one room code with your opponent(s):<br><input id=r placeholder="Room code"><button onclick=join()>Enter Arena</button></div><button onclick=menu()>Back</button>`)}
-function join(){const room=$('#r').value.toUpperCase();DN=S.guest?'Guest'+(Math.floor(Math.random()*900)+100):S.name;ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws/duel?room='+room+'&name='+encodeURIComponent(DN));
- R(`<h2>⚔️ Arena ${room}</h2><div id=pl></div><div id=ar class=card style=text-align:center></div><div class=card id=cards></div><div class=card id=inc></div><p id=lg></p><button onclick="ws.close();menu()">Leave</button>`);deal();arena('');
- ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.pl)$('#pl').innerHTML=m.pl.map(p=>`${esc(p.n)} ❤️${p.hp}<div class=bar><i style="width:${Math.max(0,p.hp)}%"></i></div>`).join('');
-  if(m.log){$('#lg').textContent=m.log;if(m.who==DN)arena(m.log.includes('failed')?'no':'ok')}if(m.t=='win'){$('#lg').textContent='🏆 '+m.n+' wins!';arena(m.n==DN?'ok':'no')}
-  if(m.t=='incoming'){arena('in');$('#inc').innerHTML=`🛡️ ${esc(m.from)} cast a curse! Find and fix the misspelling to deflect:<p>${m.s}</p><input id=d><button id=dg>Deflect!</button>`;$('#dg').onclick=()=>{ws.send(JSON.stringify({t:'deflect',a:$('#d').value}));$('#inc').innerHTML=''}}}}
-function deal(){hand=pick(3);$('#cards').innerHTML=['🔥 Fireball','❄️ Frost Bolt','⚡ Lightning'].map((n,i)=>`<button onclick=cast(${i})>${n}</button>`).join('')}
-function cast(i){const it=hand[i];say(it.w);let t=0;$('#cards').innerHTML=`Spell the word you hear: <input id=a><button id=go>Cast!</button><button onclick="say(hand[${i}].w)">🔊</button><p id=f></p>`;
- $('#go').onclick=()=>{if($('#a').value.trim().toLowerCase()==it.w){ws.send(JSON.stringify({t:'cast',w:it.w,s:it.s}));arena('ok');report(it,'duel',true,t+1,0);deal()}else if(++t>=3){arena('no');report(it,'duel',false,3,0);$('#f').textContent='Fizzled! It was '+it.w+'. '+it.h;setTimeout(deal,3000)}else{$('#f').textContent='Fizzle! '+it.h;$('#a').value=''}}}
-function teacher(){R(`<h2>Teacher / Admin</h2><div class=card><input id=u placeholder=Username><input id=p type=password placeholder=Password><button onclick=tLogin()>Teacher login</button></div><div class=card><b>Admin: create teacher</b><input id=ak type=password placeholder="Admin key"><input id=nu placeholder="New username"><input id=np placeholder="New password"><button onclick=mk()>Create</button></div><p id=e></p><button onclick=login()>Back</button>`)}
-async function mk(){const r=await api('admin/teacher',{key:$('#ak').value,user:$('#nu').value,pass:$('#np').value});$('#e').textContent=r.error||'Teacher created'}
-async function tLogin(){const r=await api('teacher/login',{user:$('#u').value,pass:$('#p').value});if(r.error)return $('#e').textContent=r.error;S={tok:r.tok};dash()}
-const MN={1:'Echo Hall (Lv1)',2:'Mending Workshop (Lv10)',3:'Curse-Breaking Tower (Lv20)',4:'Wraith Dungeon (Lv5)',d:'Duel Arena (Lv1)'};
-function cls(c){const s=JSON.parse(c.settings||'{}'),m=s.modes||{},id=c.code;
- return `<div class=card><b>${esc(c.name)}</b> · code <b>${id}</b><br><button onclick="ana('${id}')">Analytics</button><button onclick="cards('${id}')">🖨 Print cards</button>
- <details><summary>Rooms &amp; sign-up</summary>${Object.keys(MN).map(k=>`<div>${MN[k]} <select id=m${id}${k}>${[['auto','By level'],['open','Always open'],['locked','Locked']].map(o=>`<option value=${o[0]} ${(m[k]||'auto')==o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>`).join('')}<div>New pupils <select id=e${id}><option value=open>Can self-enrol</option><option value=closed ${s.enrol=='closed'?'selected':''}>Teacher-created only</option></select></div><button onclick="sv('${id}')">Save</button></details>
- <details><summary>Add pupils in bulk</summary><textarea id=s${id} rows=5 style="width:90%" placeholder="One pupil name per line"></textarea><button onclick="bs('${id}')">Create accounts</button></details></div>`}
-async function sv(c){const modes={};for(const k of Object.keys(MN))modes[k]=$('#m'+c+k).value;const r=await api('teacher/modes',{code:c,modes,enrol:$('#e'+c).value});$('#e').textContent=r.error||'Saved'}
-async function bs(c){const r=await api('teacher/students',{code:c,text:$('#s'+c).value});$('#e').textContent=r.error||`${r.added} new pupil accounts created (${r.total-r.added} already existed)`}
-async function cards(c){const r=await api('teacher/students?code='+c);if(r.error||!r.length)return $('#e').textContent=r.error||'No pupils yet';
- $('#pr').innerHTML=r.map(p=>`<div class=pc><b>🔮 Spell Academy: Apprentice Pass</b><br>Name (username): <b>${esc(p.name)}</b><br>Class code: <b>${c}</b><br>Play at: ${location.origin}</div>`).join('');window.print()}
-async function dash(){const cl=await api('classes');R(`<h2>Your classes</h2>${cl.map(cls).join('')}<div class=card><input id=cn placeholder="New class name"><button onclick=mc()>Create class</button></div><div class=card><b>Upload word list</b><input id=lc placeholder="Class code"><input id=ln placeholder="List name"><textarea id=lt rows=5 style="width:90%" placeholder="word|sentence using {w}|hint (one per line)"></textarea><button onclick=ul()>Upload</button></div><div id=an></div><p id=e></p>`)}
-async function mc(){await api('teacher/class',{name:$('#cn').value});dash()}
-async function ul(){const r=await api('teacher/list',{code:$('#lc').value,name:$('#ln').value,text:$('#lt').value});$('#e').textContent=r.error||r.added+' words added'}
-async function ana(c){const r=await api('analytics?code='+c);$('#an').innerHTML=`<div class=card><table><tr><th>Pupil<th>XP<th>Tries<th>Acc<th>Avg s</tr>${r.students.map(s=>`<tr><td>${esc(s.name)}<td>${s.xp}<td>${s.n}<td>${s.n?Math.round(100*s.ok/s.n):0}%<td>${(s.ms/1000).toFixed(1)}</tr>`).join('')}</table><b>Hardest words</b><br>${r.words.map(w=>`${w.word} (${w.miss}/${w.n} missed)`).join(', ')}<br><b>Dungeon best</b><br>${r.dungeon.map(d=>`${esc(d.name)}: ${d.best}/100 (${d.runs} runs)`).join('<br>')}</div>`}
-S.tok?(load().then(menu)):login();
-</script>
+<!doctype html>
+<html lang=en>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name=theme-color content="#1b1633">
+<title>Spell Academy</title>
+<link rel=stylesheet href="/app.css?v=2">
+<div id=shell><nav id=nav aria-label="Main"></nav><div id=app></div></div>
+<div id=pr></div><div id=toast aria-live=polite></div>
+<script>const GUEST=true; // set false to hide the guest button</script>
+<script src="/core.js?v=2"></script>
+<script src="/player.js?v=2"></script>
+<script src="/teacher.js?v=2"></script>
+<script>S.tok&&S.name?load().then(home):login();</script>
