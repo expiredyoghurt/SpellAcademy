@@ -26,7 +26,7 @@ You need a GitHub account and a Cloudflare account on the **Workers Paid plan** 
 ### 2. Create the database
 1. Cloudflare dashboard → **Storage & Databases → D1 SQL Database → Create database**. Name it `spell-academy`.
 2. Open the database, copy its **Database ID**.
-3. Open the **Console** tab, paste the whole contents of `schema.sql`, and run it. You should see 8 tables under **Tables**.
+3. Open the **Console** tab, paste the whole contents of `schema.sql`, and run it. You should see 9 tables under **Tables**.
 4. Back on GitHub, open `wrangler.toml`, click the pencil icon, replace `REPLACE_WITH_YOUR_D1_ID` with the ID, and commit.
 
 ### 3. Connect the repo to Workers
@@ -65,21 +65,33 @@ The Great Grimoire of Aldermere once held every word in perfect order, until the
 Pupils land on a **Home** screen with a bottom tab bar (a top bar on tablets and desktops): **Home**, **Rooms**, **Spellbook** and **Me**.
 - **Daily goal and streak:** answering 5 words in a day (Singapore time) completes the goal. Consecutive goal days build a 🔥 streak. One missed day per Monday to Sunday week is forgiven automatically (a streak freeze), as long as the day before it was a goal day. Change the target with `GOAL` near the top of `src/worker.js`.
 - **Spellbook:** every word the pupil has met, marked *Learning* or *Mastered* (right 3 times in a row). Tap a word for its sentence and clue, and to hear it. The Curse-Breaking Tower's spotting round does not count, because it tests recognition rather than spelling.
-- **Badges:** 15 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered, four rank-ups, dungeon cleared, Curse Breaker). They are awarded by the server and shown on the **Me** tab. Duel Winner is planned for the next phase, once duel results are checked on the server.
+- **Badges:** 16 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered, four rank-ups, dungeon cleared, Curse Breaker, Duel Winner). They are awarded by the server and shown on the **Me** tab.
 - **Feel:** sound effects (switch off under **Me**), vibration on wrong answers on phones, a combo counter, confetti on round results and rank-ups, and a letter-by-letter comparison of the pupil's spelling with the correct word. Reduced-motion settings are respected.
 - **Phones and tablets:** large touch targets, answer boxes with autocorrect and auto-capitalise turned off, and a 🐢 slow replay button for words.
 
+## Teacher dashboard (v2.1)
+Sign in under **Teacher / Admin**. The bottom (or top) bar has **Classes**, **Word lists** and **Sign out**. Pick a class, then use its four tabs:
+- **Overview:** pupils active this week, class accuracy against last week, words attempted, and how many pupils reached today's goal. Below that are **Needs attention** (not started, inactive 7+ days, accuracy under 60%, or dropping 15+ points), the **Hardest words** (with the wrong spellings pupils most often wrote), and a 14-day practice heatmap. Two CSV exports are included. Wrong spellings are collected from v2.1 onwards, so older attempts do not show them.
+- **Pupils:** a sortable table. Tap a pupil for their accuracy, streak, mastered words, weakest words, results by room and dungeon best. Add pupils in bulk and print login cards here.
+- **Word lists:** quick pick by level, or tick any lists, then **Save lists**. Tick nothing for the Default list.
+- **Settings:** lock or open each room, and choose whether pupils may create their own accounts.
+
+The **Word lists** tab in the main bar is where you create your own lists, tag them by level and check for repeats. Teacher sessions last until the browser tab is closed.
+
+## Duel Arena
+Duels are now checked by the server. It deals each player three words, marks every spelling, rejects impossible speeds, awards the XP (capped at 300 per visit), and records wins. Pupils cannot send their own words or text to opponents. A pupil can only be in a room once, and a duel needs a second player before spells can be cast. The last wizard standing wins, earns the **Duel Winner** badge (the 16th badge), and anyone can press **Rematch**. Guests can duel but earn no XP. A teacher who locks the Duel Arena for a class locks it for those pupils.
+
 ## Pupil accounts, cards and room locks (teacher dashboard)
-- **Add pupils in bulk:** open a class, expand *Add pupils in bulk*, paste one name per line. The name is the pupil's username.
-- **Print cards:** click *Print cards* on a class. A print dialog opens with one card per pupil (username, class code, game URL), two per row, cut-out ready.
-- **Rooms:** under *Rooms & sign-up*, set each room to *By level* (default), *Always open* or *Locked*. Locked rooms are sealed for that class and the server rejects their answers.
+- **Add pupils in bulk:** open a class's **Pupils** tab, expand *Add pupils in bulk*, paste one name per line. The name is the pupil's username.
+- **Print cards:** click *Print login cards* on the Pupils tab. A print dialog opens with one card per pupil (username, class code, game URL), two per row, cut-out ready.
+- **Rooms:** on the **Settings** tab, set each room to *By level* (default), *Always open* or *Locked*. Locked rooms are sealed for that class and the server rejects their answers.
 - **Sign-up:** switch to *Teacher-created only* so pupils cannot create new accounts by typing a new name.
 
 ## Guest mode
 The login screen has a **Play as guest** button. Guests play Echo Hall, Mending Workshop, Curse-Breaking Tower and the Duel Arena with the built-in words. Their XP is not saved, teachers do not see them in analytics, and the Wraith Dungeon needs a real account. To hide the button, set `GUEST=false` at the top of the script in `public/index.html`.
 
 ## Upgrading from the first version
-Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then commit the new files to GitHub.
+Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then commit the new files to GitHub.
 
 ## Word lists
 Seven lists are built in: **Default** (the original mixed list, used by guests), and **Primary 1** to **Primary 6**. All six levels are written with 100 words each (600 in total), and no word appears in more than one built-in list (Default included). To add words, append lines to the matching list in this file, or have teachers create custom lists in the dashboard. They live in `src/words.js`, one `word|sentence with {w}|clue` per line.
@@ -103,7 +115,7 @@ necessary|It is {w} to wear a helmet when cycling.|One collar, two sleeves.
 ## Notes
 - XP is calculated on the server from accuracy and speed. Level = floor(XP / 150) + 1, so Lv10 needs 1,350 XP and Lv20 needs 2,850 XP.
 - Voice uses the browser's built-in speech (en-GB). Pupils should use Chrome, Edge or Safari with sound on.
-- Duel spell checks currently run in the browser, so don't use duels for assessed marks.
+- Duels and the Wraith Dungeon are checked by the server. Echo Hall, Mending Workshop and the Curse-Breaking Tower still take the browser's word on whether an answer was right, so treat their XP as practice rather than assessment.
 
 ## Troubleshooting
 - **"Not found or not signed in"**: the secrets are missing; redo step 4 and redeploy.
