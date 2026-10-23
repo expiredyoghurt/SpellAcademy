@@ -13,8 +13,8 @@ async function home(){R(hdr()+'<div class=card><small>Loading your tower…</sma
  <button class="wide big" onclick="play(1)">✨ Cast today's spells</button>${p&&p.due?`<small class=center style=display:block>📅 ${p.due} word${p.due>1?'s':''} due for review. They come first.</small>`:''}
  ${p&&S.xp>0&&!localStorage.sa_spaced?`<div class=card><b>📣 What "mastered" means now</b><br><small>A word is mastered when you spell it right <b>first time on 3 different days</b>. Every time you do, the Grimoire waits longer before asking again. Your mastered number may have gone down. Words you know come back for quick reviews to make sure they stay.</small><br><button class=ghost onclick="localStorage.sa_spaced=1;home()">Got it</button></div>`:''}
  <div class=card><b>Latest badges</b><br>${bs.length?bs.map(d=>`<span class=pill>${d[1]} ${d[2]}</span>`).join(' '):'<small>Spell a word to earn your first badge!</small>'}</div>`,'home')}
-const MD=[['1','🎧','Echo Hall','Hear the Grimoire whisper a word, then write it down.'],['2','✏️','Mending Workshop','Repair a spell the Wraiths have twisted.'],['3','🔍','Curse-Breaking Tower','Hunt the cursed words, then break each curse.'],['4','🕳️','Wraith Dungeon','Descend with 3 hearts. Clear 100 answers to beat the dungeon!'],['d','⚔️','Duel Arena','Rival apprentices hurl cursed words. Deflect them!']];
-const go=k=>k=='d'?duel():k=='4'?dstart():play(+k);
+const MD=[['1','🎧','Echo Hall','Hear the Grimoire whisper a word, then write it down.'],['2','✏️','Mending Workshop','Repair a spell the Wraiths have twisted.'],['3','🔍','Curse-Breaking Tower','Hunt the cursed words, then break each curse.'],['f','🔨','Word Forge','Join roots and endings, and master the rules that change a spelling.'],['4','🕳️','Wraith Dungeon','Descend with 3 hearts. Clear 100 answers to beat the dungeon!'],['d','⚔️','Duel Arena','Rival apprentices hurl cursed words. Deflect them!']];
+const go=k=>k=='d'?duel():k=='4'?dstart():k=='f'?forge():play(+k);
 function rooms(){const m=S.modes||{};R(`<h2>Rooms</h2><div class=seg><button class="${focus=='acc'?'on':''}" onclick="focus='acc';rooms()">🎯 Accuracy</button><button class="${focus=='spd'?'on':''}" onclick="focus='spd';rooms()">⏱ Speed (20s)</button></div>`+MD.map(([k,i,n,d])=>m[k]===true?`<div class="card room"><span class=ic>${i}</span><div><b>${n}</b><br><small>${d}</small></div><button onclick="go('${k}')">Enter</button></div>`:`<div class="card room lock"><span class=ic>🔒</span><div><b>${n}</b><br><small>${m[k]==='L'?(S.guest?'Log in with your class code to enter.':'Sealed by your teacher for now.'):'Unlocks at Lv'+m[k]+'.'}</small></div></div>`).join(''),'rooms')}
 let BK=[],BKF='all',BKT=0;const rev=x=>x.d<=BKT?'review today':x.d==BKT+1?'review tomorrow':'review in '+(x.d-BKT)+' days';
 async function book(){if(S.guest)return R(`<h2>📖 Spellbook</h2><div class=card>Log in with your class code to keep a Spellbook of every word you have met.</div>`,'book');
@@ -27,19 +27,35 @@ async function me(){R(hdr()+'<div class=card><small>Loading…</small></div>','m
  R(`<div class=card><div class=hero>${spr('wiz',rob(),6)}<div><h2>${esc(S.name)}</h2>${TT[rk(S.xp)]} · Lv${lv(S.xp)}<br><small>${S.xp} XP${S.code?' · class '+esc(S.code):''}</small></div></div></div><h3>Badges ${p?`(${have.size}/${BD.length})`:''}</h3>${p?'':'<div class=card><small>Log in with your class code to earn badges.</small></div>'}<div class=bgs>${BD.map(d=>`<div class="bdg ${have.has(d[0])?'':'lock'}"><i>${d[1]}</i><b>${d[2]}</b><small>${d[3]}</small></div>`).join('')}</div><div class=card><label>🔊 Sound effects <button class=ghost onclick=snd()>${muted()?'Off':'On'}</button></label></div><button class="wide ghost" onclick=logout()>Leave</button>`,'me')}
 function snd(){localStorage.sa_mute=muted()?'0':'1';sfx('ok');me()}
 function logout(){S={};save();login()}
-async function guest(){S={guest:1,name:'Guest',xp:0,modes:{1:true,2:true,3:true,4:'L',d:true}};await load();home()}
+async function guest(){S={guest:1,name:'Guest',xp:0,modes:{1:true,2:true,3:true,4:'L',d:true,f:true}};await load();home()}
 async function report(it,mode,ok,tries,ms,ans){if(S.guest){const g=!ok?1:Math.round(([0,10,6,3][tries]||3)+Math.max(0,1-ms/20000)*(focus=='spd'?15:5));S.xp+=g;return g}
  const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus,ans});if(r.error){alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);return 0}S.xp=r.xp;S.modes=r.modes;save();fx(r);return r.gain}
 async function play(m){if(m==3&&words.length<4)return alert('This word list needs at least 4 words for the Curse-Breaking Tower.');
  const b4={...S.modes},l0=lv(S.xp);let tot=0;const n=m==3?2:6,q=await sched(m==3?8:6);combo=0; // q: words due for review first, then new ones
  const four=i=>{const a=q.slice(i*4,i*4+4);for(const w of pick(words.length)){if(a.length>=4)break;if(!a.some(x=>x.w==w.w))a.push(w)}return a};
  for(let i=0;i<n;i++)tot+=m==3?await spot(four(i)):await single(q[i%q.length],m,i+1,n);
+ return done(tot,b4,l0)}
+function done(tot,b4,l0){
  const l1=lv(S.xp),nu=MD.filter(x=>S.modes[x[0]]===true&&b4[x[0]]!==true).map(x=>x[2]);
  R(hdr()+`<div class="card center"><h2>The Grimoire glows brighter!</h2><div class=big id=gx>+0</div><small>XP earned</small>${l1>l0?`<p>🎉 Rank up! You are now <b>${TT[rk(S.xp)]}</b> Lv${l1}</p>`:''}${nu.length?'<p>🔓 New room unlocked: <b>'+nu.join(', ')+'</b></p>':''}</div><button class="wide big" onclick=home()>Back to the Academy</button>`);
  countUp($('#gx'),tot);confetti();sfx(l1>l0?'lvl':'ok')}
 function diff(a,w){const n=a.length,m=w.length,L=Array.from({length:n+1},()=>Array(m+1).fill(0));for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]==w[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
  let i=0,j=0,A='',W='';while(i<n&&j<m){if(a[i]==w[j]){A+=`<span class=ok>${esc(a[i])}</span>`;W+=`<span class=ok>${esc(w[j])}</span>`;i++;j++}else if(L[i+1][j]>=L[i][j+1])A+=`<s class=bad>${esc(a[i++])}</s>`;else W+=`<u class=bad>${esc(w[j++])}</u>`}
  while(i<n)A+=`<s class=bad>${esc(a[i++])}</s>`;while(j<m)W+=`<u class=bad>${esc(w[j++])}</u>`;return `<span class=dif>You wrote: ${A}<br>Correct: ${W}</span>`}
+// ---- Word Forge: join a root and an ending (or a prefix and a root) and apply the spelling rule ----
+async function forge(){const r=S.guest?await fetch('/api/guest-forge?n=6').then(x=>x.json()).catch(()=>({})):await api('forge?n=6');
+ if(r.error||!r.items||!r.items.length)return alert(r.error=='locked'?'This room has been sealed by your teacher.':(r.error||'No Forge words yet.'));
+ const b4={...S.modes},l0=lv(S.xp);let tot=0;combo=0;for(let i=0;i<r.items.length;i++)tot+=await forgeItem(r.items[i],r.rules,i+1,r.items.length);return done(tot,b4,l0)}
+function forgeItem(it,rules,i,n){return new Promise(res=>{SPW=wcol();let tries=0,t0=Date.now(),last='';
+ const ru=rules[it.rule]||{n:'',t:'',ex:''},naive=(it.pre?it.l.slice(0,-1):it.l)+it.r,fix=naive!==it.w&&Math.random()<.34; // "fix" rounds show the naive join, the classic mistake
+ const eq=`<div class=forge><span class=fp>${esc(it.l)}</span><b>+</b><span class=fp>${esc(it.r)}</span><b>=</b>${fix?`<span class="fp bad">${esc(naive)}</span>`:'<span class=fp>?</span>'}</div>`;
+ R(hdr()+`<div id=sp class="card stage">${spr('wiz',rob(),4)} ${spr('wr',{g:SPW},4)}</div><div class=card><div class=prog><small>Forge ${i}/${n}</small>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p><small>${fix?'The forge went wrong! Write the correct spelling.':'Join them. Mind the rule!'}</small></p>${eq}<p>${esc(it.s).replace('{w}','_____')}</p><input id=a class=ans ${AI}><button id=go class=wide>Forge!</button><p id=f></p></div>`);
+ const card=`<div class=rule><b>🔨 ${esc(ru.n)}</b><br><small>${esc(ru.t)}</small><br><small><b>${esc(ru.ex)}</b></small></div>`;
+ const fin=async ok=>{react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report({w:it.w},'f',ok,tries,Date.now()-t0,last);
+  $('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP${combo>1?' · 🔥 combo x'+combo:''}</span>`:`<span class=bad>The word is <b>${esc(it.w)}</b>.</span><br>${last?diff(last,it.w)+'<br>':''}`)+card+'<button id=nx class=wide>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g);$('#nx').focus()};
+ $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();last=v;tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);react('no');sfx('no');buzz(60);
+  $('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?'Think about this rule: <b>'+esc(ru.n)+'</b>.':esc(ru.t)+' It begins "'+esc(it.w.slice(0,Math.ceil(it.w.length/2)))+'…"')+` (${3-tries} left)</span>`;$('#a').select()};
+ $('#a').onkeydown=onEnter(()=>$('#go').click());$('#a').focus()})}
 let SPW='#9ca3af';const wcol=()=>['#9ca3af','#a78bfa','#34d399','#fb923c'][Math.floor(Math.random()*4)];
 function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol();let tries=0,t0=Date.now(),left=20,last='';
  const sc=esc(it.s).replace('{w}',mode==2?`<b class=bad>${esc(shown||mis(it.w,it.x))}</b> <input id=a class="ans inl" size=12 ${AI}>`:'_____');
