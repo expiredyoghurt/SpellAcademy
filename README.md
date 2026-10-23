@@ -8,7 +8,8 @@ schema.sql         D1 tables
 src/worker.js      API, login, XP, analytics, DuelRoom Durable Object
 public/index.html  Page shell (guest switch lives here)
 public/app.css     Styles: responsive layout, theme colours, bottom tab bar
-public/core.js     Shared helpers: sound effects, toasts, badges list, sprites
+public/core.js     Shared helpers: sound effects, toasts, badges list, sprites, review-queue fetch
+public/spelling.js Misspelling generator and error classifier (used by the browser AND imported by the Worker)
 public/player.js   Pupil screens: Home, Rooms, Spellbook, Me, all game modes
 public/teacher.js  Teacher / admin dashboard
 migrations/        One-off SQL for upgrading an older deployment
@@ -26,7 +27,7 @@ You need a GitHub account and a Cloudflare account on the **Workers Paid plan** 
 ### 2. Create the database
 1. Cloudflare dashboard → **Storage & Databases → D1 SQL Database → Create database**. Name it `spell-academy`.
 2. Open the database, copy its **Database ID**.
-3. Open the **Console** tab, paste the whole contents of `schema.sql`, and run it. You should see 9 tables under **Tables**.
+3. Open the **Console** tab, paste the whole contents of `schema.sql`, and run it. You should see 10 tables under **Tables**.
 4. Back on GitHub, open `wrangler.toml`, click the pencil icon, replace `REPLACE_WITH_YOUR_D1_ID` with the ID, and commit.
 
 ### 3. Connect the repo to Workers
@@ -45,7 +46,7 @@ Then click **Deploy** so the secrets take effect.
 
 ### 5. First use
 1. Open your `*.workers.dev` URL → **Teacher / Admin**.
-2. Under *Admin: create teacher*, enter your admin key plus a username and password.
+2. Click **Open the admin page**, enter your admin key, and on the **Teachers** tab choose *Create a teacher* (username 3+ characters, password 6+ characters).
 3. Log in as that teacher → **Create class**. Share the 6-letter class code.
 4. Pupils enter their name and the class code. They are enrolled automatically the first time.
 5. For duels, pupils in the same class (or anyone) type the same room code in **Duel Arena**.
@@ -74,19 +75,43 @@ Every 10 Wraiths silenced (10, 20 … 90) is a checkpoint, and the story moves o
 ## Pupil experience (v2)
 Pupils land on a **Home** screen with a bottom tab bar (a top bar on tablets and desktops): **Home**, **Rooms**, **Spellbook** and **Me**.
 - **Daily goal and streak:** answering 5 words in a day (Singapore time) completes the goal. Consecutive goal days build a 🔥 streak. One missed day per Monday to Sunday week is forgiven automatically (a streak freeze), as long as the day before it was a goal day. Change the target with `GOAL` near the top of `src/worker.js`.
-- **Spellbook:** every word the pupil has met, marked *Learning* or *Mastered* (right 3 times in a row). Tap a word for its sentence and clue, and to hear it. The Curse-Breaking Tower's spotting round does not count, because it tests recognition rather than spelling.
-- **Badges:** 16 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered, four rank-ups, dungeon cleared, Curse Breaker, Duel Winner). They are awarded by the server and shown on the **Me** tab.
+- **Spellbook:** every word the pupil has met, marked *Learning* or *Mastered*, with when it is next due for review. Mastered means spelled right first time on 3 different days (see *Spaced review* below). Tap a word for its sentence and clue, and to hear it. The Curse-Breaking Tower's spotting round does not count, because it tests recognition rather than spelling.
+- **Badges:** 16 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered on 3 separate days, four rank-ups, dungeon cleared, Curse Breaker, Duel Winner). They are awarded by the server and shown on the **Me** tab.
 - **Feel:** sound effects (switch off under **Me**), vibration on wrong answers on phones, a combo counter, confetti on round results and rank-ups, and a letter-by-letter comparison of the pupil's spelling with the correct word. Reduced-motion settings are respected.
 - **Phones and tablets:** large touch targets, answer boxes with autocorrect and auto-capitalise turned off, and a 🐢 slow replay button for words.
 
 ## Teacher dashboard (v2.1)
-Sign in under **Teacher / Admin**. The bottom (or top) bar has **Classes**, **Word lists** and **Sign out**. Pick a class, then use its four tabs:
-- **Overview:** pupils active this week, class accuracy against last week, words attempted, and how many pupils reached today's goal. Below that are **Needs attention** (not started, inactive 7+ days, accuracy under 60%, or dropping 15+ points), the **Hardest words** (with the wrong spellings pupils most often wrote), and a 14-day practice heatmap. Two CSV exports are included. Wrong spellings are collected from v2.1 onwards, so older attempts do not show them.
-- **Pupils:** a sortable table. Tap a pupil for their accuracy, streak, mastered words, weakest words, results by room and dungeon best. Add pupils in bulk and print login cards here.
-- **Word lists:** quick pick by level, or tick any lists, then **Save lists**. Tick nothing for the Default list.
-- **Settings:** lock or open each room, and choose whether pupils may create their own accounts.
+Sign in under **Teacher / Admin**. The bottom (or top) bar has **Classes**, **Word lists** and **Sign out**. Choose a class from the **Class** dropdown (it shows each class's pupil count and code, and ends with *New class*), then use its four tabs. The page remembers your last class and tab while the browser tab stays open:
+- **Overview:** pupils active this week, class accuracy against last week, words attempted, and how many pupils reached today's goal. Below that are **Needs attention** (not started, inactive 7+ days, accuracy under 60%, or dropping 15+ points), the **Hardest words** (with the wrong spellings pupils most often wrote), and a 14-day practice heatmap. A **Kinds of mistakes** card sorts every wrong answer into a type (see *Error types* below), so you can see that a class struggles with, say, double letters rather than just which words are hard. Two CSV exports are included (the hardest-words export has a kinds-of-mistake column). Wrong spellings are collected from v2.1 onwards, so older attempts do not show them. A pupil's page has the same card for that pupil.
+- **Roster:** every pupil account in the class, numbered, including pupils who have never logged in (marked *Not started*). Search by name, filter (needs attention, not started, inactive 7+ days, active in the last 7 days) and sort from dropdowns, or tap a column heading. Tap a pupil for their accuracy, streak, mastered words, weakest words, results by room and dungeon best; **Prev**, **Next** and a pupil dropdown move between pupils without going back. Export the roster as CSV, print a roster, print login cards and add pupils in bulk here. Open a pupil and use **Manage this account** to **rename** them (fix a typo; they log in with the new name from then on, and their progress is kept) or **remove** them (permanently deletes the account, progress, badges and dungeon runs, after a confirmation).
+- **Word lists:** quick pick by level, or open the dropdown, search and tick any lists (built-in and your own), then **Save lists**. Tick nothing for the Default list.
+- **Settings:** lock or open each room, choose whether pupils may create their own accounts, **rename the class**, or **delete the class**. Deleting asks you to type the class name, and permanently removes the class, all its pupil accounts and their progress.
 
-The **Word lists** tab in the main bar is where you create your own lists, tag them by level and check for repeats. Teacher sessions last until the browser tab is closed.
+The **Word lists** tab in the main bar is where you create your own lists, tag them by level and check for repeats. If you have several lists, pick one from the dropdown to see it. **Edit words** lets you rename a list and add, change or delete words after saving it (same one-word-per-line format; repeats are removed). If a list has already been shared with other teachers' classes, editing its words sends it back for admin review, and you are warned before you save. The **Account** tab shows who is signed in and lets you change your own password (current password, then the new one twice; 6 or more characters). Teacher sessions last until the browser tab is closed.
+
+### Admin page (v2.2)
+On the **Teacher / Admin** screen click **Open the admin page** and enter the admin key. The key is held only in the browser tab's memory and forgotten when you press **Lock** or reload. The page has four tabs:
+- **Teachers:** totals (teachers, classes, pupils), a table of every teacher with their class and pupil counts, *Create a teacher*, and *Reset a teacher's password* (pick the teacher from a dropdown).
+- **Classes:** choose a teacher (or all teachers), then a class from the dropdown, to see its full roster with level, XP, words attempted and last active. Search the roster and export it as CSV.
+- **Review:** the queue of shared word lists waiting for approval. Pick a list from the dropdown, check the repeat warnings and the full word list, then Approve or Decline each level (or approve all levels at once). The queue moves on to the next list.
+- **Tools:** *Remove repeats from shared lists* (asks you to confirm) and Lock.
+
+## Spaced review (v2.3)
+Every word a pupil answers gets a review box (0 to 5) and a due date, kept in the `word_state` table. The Home button **Cast today's spells** and the Echo Hall, Mending Workshop and Curse-Breaking Tower rooms all draw their words from this queue: words that are due first (most overdue first), then words the pupil has not met yet. When a backlog is large, one third of each round is kept for new words so progress does not stall.
+- **Moving up:** a word moves up one box only when it is spelled right on the first try on a day it is due. Repeating a word several times in one sitting does not move it, and neither does answering early.
+- **Gaps:** the next review comes 1, 3, 7, 14, then 30 days after the last promotion (edit `BOX_GAP` in `src/worker.js`).
+- **Mastered** = box 3 or higher = spelled right first time on 3 different days, with a growing gap (at least 1 day, then at least 3 days). This replaces "right 3 times in a row", which could happen in one sitting and measured short-term memory. The 10 and 50 mastered badges, the Spellbook, Home and the teacher dashboard all use it. Earned badges are never taken back, but the mastered count can fall.
+- **Right after a hint** (second or third try): no promotion, due again tomorrow. **Wrong:** the word slides back two boxes, and a mastered word stops being mastered until it is earned again.
+- Every answer except the Tower's spotting round counts: Echo Hall, Mending Workshop, the Tower's repair step, the Dungeon and Duels. Dungeon and Duel word choice is unchanged.
+- **Existing pupils:** nothing to copy. The first time a pupil plays, opens Home, or a teacher opens that pupil, their old attempts are replayed day by day to build their `word_state`. Expect mastered counts to drop for pupils who practised in long single sessions. Home shows each pupil a one-time note explaining the new meaning.
+- **Targeting:** if a pupil has made at least 5 classified mistakes in the last 60 days and one or two kinds are 30% or more of them, the queue favours words where those kinds of slip are plausible (new words first, then due words of the same overdue day).
+
+## Misspellings and error types (v2.3)
+`public/spelling.js` is shared by the browser and the Worker.
+- **Realistic misspellings:** modes that show a wrong spelling (Mending Workshop, the Tower, the Dungeon's fix challenges, Duel curses) no longer just swap two letters. The generator picks a kind of slip first (vowel pattern, double/single letter, sounds-right, missing letter, swapped letters), then a rule for it: ie/ei, ea/ee, silent letters (kn, wr, mb, gh, gu), ph/f, c/s, -tion, -ant/-ent, -able/-ible, -ful/-full, silent e, a lone vowel changed (seperate), and so on. Edit `RULES` and `TW` in `spelling.js` to tune it.
+- **Real mistakes from your pupils:** when 2 or more different pupils in a class have written the same near-miss for a word, that spelling joins a distractor bank for the class, and half the time the misspelling shown is one of them. Needs no setup; refreshed every 5 minutes. Guests always get the rule-based misspellings.
+- **Error types:** each wrong answer is tagged when it is saved (`attempts.etype`): *Vowel pattern*, *Double or single letters*, *Sounds right, spelled wrong*, *Missing letter*, *Extra letter*, *Swapped letters* or *Other*. Swapped vowels such as ie/ei count as vowel pattern. Blank answers (timeouts) get no tag. Older attempts have no stored tag; dashboards classify them on the fly from the wrong spelling, so history shows up immediately.
+- Modes 1 to 3 are still judged by the browser, so treat error-type counts from them as practice data, like their XP.
 
 ## Duel Arena
 Duels are now checked by the server. It deals each player three words, marks every spelling, rejects impossible speeds, awards the XP (capped at 300 per visit), and records wins. Pupils cannot send their own words or text to opponents. A pupil can only be in a room once, and a duel needs a second player before spells can be cast. The last wizard standing wins, earns the **Duel Winner** badge (the 16th badge), and anyone can press **Rematch**. Guests can duel but earn no XP. A teacher who locks the Duel Arena for a class locks it for those pupils.
@@ -101,7 +126,7 @@ Duels are now checked by the server. It deals each player three words, marks eve
 The login screen has a **Play as guest** button. Guests play Echo Hall, Mending Workshop, Curse-Breaking Tower and the Duel Arena with the built-in words. Their XP is not saved, teachers do not see them in analytics, and the Wraith Dungeon needs a real account. To hide the button, set `GUEST=false` at the top of the script in `public/index.html`.
 
 ## Upgrading from the first version
-Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then `migrations/009_checkpoints.sql` (dungeon checkpoints, v2.2; run it BEFORE deploying v2.2), then commit the new files to GitHub.
+Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then `migrations/009_checkpoints.sql` (dungeon checkpoints, v2.2; run it BEFORE deploying v2.2), then `migrations/010_spaced_review.sql` (spaced review and error types, v2.3; run it BEFORE deploying v2.3, because the new code writes to the new column and table), then commit the new files to GitHub.
 
 ## Word lists
 Seven lists are built in: **Default** (the original mixed list, used by guests), and **Primary 1** to **Primary 6**. All six levels are written with 100 words each (600 in total), and no word appears in more than one built-in list (Default included). To add words, append lines to the matching list in this file, or have teachers create custom lists in the dashboard. They live in `src/words.js`, one `word|sentence with {w}|clue` per line.
@@ -110,9 +135,9 @@ In the teacher dashboard, open a class and tick the lists under **Word lists**, 
 
 **Quick pick:** the buttons *Lower P1–P2*, *Middle P3–P4* and *Upper P5–P6* tick the matching level lists for a class (other level lists are unticked; Default and custom lists are left as they are). Press *Save lists* to apply. You can still tick any mix of levels by hand.
 
-**Level tags and shared lists:** when you create a custom list, tick P1 to P6 to add its words to those level lists. Your own classes get the words straight away. For other teachers' classes to get them, the admin must approve each tag: open **Teacher / Admin**, enter the admin key and click **Review**. The admin sees each pending list with repeat warnings, then clicks Approve or Decline per level. Teachers see the status (awaiting review, shared, not shared) under **My word lists**.
+**Level tags and shared lists:** when you create a custom list, tick P1 to P6 to add its words to those level lists. Your own classes get the words straight away. For other teachers' classes to get them, the admin must approve each tag: open the admin page and use the **Review** tab. The admin sees each pending list with repeat warnings, then clicks Approve or Decline per level. Teachers see the status (awaiting review, shared, not shared) under **My word lists**.
 
-**Repeated words:** repeats inside an uploaded list are removed automatically when it is saved. Under **My word lists**, *Check repeats* flags words that are repeated, already in the built-in level list, or already in another shared list, and *Remove repeats* deletes the repeats and any words already in the built-in lists for the list's tags. The admin also gets *Remove repeats from shared lists*, which cleans all approved lists so each word appears once per level.
+**Repeated words:** repeats inside an uploaded list are removed automatically when it is saved. Under **My word lists**, *Check repeats* flags words that are repeated, already in the built-in level list, or already in another shared list, and *Remove repeats* deletes the repeats and any words already in the built-in lists for the list's tags. The admin also gets *Remove repeats from shared lists* (admin page, **Tools** tab), which cleans all approved lists so each word appears once per level.
 
 ## Custom word lists
 Teacher dashboard → **Upload word list**, one word per line:

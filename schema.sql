@@ -2,7 +2,7 @@ create table if not exists teachers(id integer primary key autoincrement,user te
 create table if not exists classes(code text primary key,name text,teacher_id integer,settings text default '{}');
 create table if not exists students(id integer primary key autoincrement,name text collate nocase,code text,xp integer default 0,unique(name,code));
 create table if not exists lists(id integer primary key autoincrement,code text,name text,words text,owner integer,levels text default '[]',shared text default '[]',declined text default '[]');
-create table if not exists attempts(id integer primary key autoincrement,student_id integer,mode text,word text,ok integer,tries integer,ms integer,xp integer,ts integer default (unixepoch()),ans text);
+create table if not exists attempts(id integer primary key autoincrement,student_id integer,mode text,word text,ok integer,tries integer,ms integer,xp integer,ts integer default (unixepoch()),ans text,etype text);
 create index if not exists a_s on attempts(student_id);
 create table if not exists runs(id integer primary key autoincrement,student_id integer,hearts integer,correct integer,cur text,status text default 'active',peak integer default 0,deaths integer default 0,ts integer default (unixepoch()));
 create table if not exists class_lists(code text,list text,primary key(code,list));
@@ -10,3 +10,5 @@ create table if not exists badges(student_id integer,badge text,ts integer defau
 create index if not exists a_st on attempts(student_id,ts);
 create table if not exists duel_wins(id integer primary key autoincrement,student_id integer,room text,ts integer default (unixepoch()));
 create index if not exists dw_s on duel_wins(student_id);
+create table if not exists word_state(student_id integer,word text,box integer default 0,due integer default 0,lapses integer default 0,n integer default 0,upd integer default 0,primary key(student_id,word));
+create index if not exists ws_due on word_state(student_id,due);
