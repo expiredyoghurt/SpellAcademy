@@ -5,6 +5,7 @@ A spelling game for Singapore primary pupils. Cast spells by spelling words. Run
 ```
 wrangler.toml      Worker config, D1 + Durable Object bindings
 schema.sql         D1 tables
+src/forge.js       Word Forge data: 184 root + ending items and the rules that join them
 src/worker.js      API, login, XP, analytics, DuelRoom Durable Object
 public/index.html  Page shell (guest switch lives here)
 public/app.css     Styles: responsive layout, theme colours, bottom tab bar
@@ -60,6 +61,7 @@ The Great Grimoire of Aldermere once held every word in perfect order, until the
 - ✏️ **Mending Workshop** (mode 2): repair a spell the Wraiths twisted. Unlocks at Lv10.
 - 🔍 **Curse-Breaking Tower** (mode 3): spot the cursed words, then break each curse. Unlocks at Lv20.
 - ⚔️ **Duel Arena**: apprentices hurl cursed words at each other and deflect them. Open from Lv1.
+- 🔨 **Word Forge** (v2.4): join a root and an ending (or a prefix and a root) and apply the spelling rule. Open from Lv1 and can be locked by teachers like other rooms. See *Word Forge* below.
 - 🕳️ **Wraith Dungeon** (solo): 100 Wraiths over 10 floors, each with its own story chapter and a spelling tip. Start with 3 hearts and lose one for each word you fail after 3 attempts. Random events can heal a heart (up to 5) or drop bonus XP. The run ends after 100 correct answers (+100 XP). See *Dungeon checkpoints* below. Words you have missed before appear more often. Limits per run: hearts never exceed 5, at most 3 heals, 6 random events and 1,500 XP (change `HEAL_MAX`, `EV_MAX`, `RUN_XP_CAP` at the top of `src/worker.js`). Unlocks at Lv5 and can be locked by teachers like other rooms.
 
 ### Dungeon checkpoints (v2.2)
@@ -76,7 +78,7 @@ Every 10 Wraiths silenced (10, 20 … 90) is a checkpoint, and the story moves o
 Pupils land on a **Home** screen with a bottom tab bar (a top bar on tablets and desktops): **Home**, **Rooms**, **Spellbook** and **Me**.
 - **Daily goal and streak:** answering 5 words in a day (Singapore time) completes the goal. Consecutive goal days build a 🔥 streak. One missed day per Monday to Sunday week is forgiven automatically (a streak freeze), as long as the day before it was a goal day. Change the target with `GOAL` near the top of `src/worker.js`.
 - **Spellbook:** every word the pupil has met, marked *Learning* or *Mastered*, with when it is next due for review. Mastered means spelled right first time on 3 different days (see *Spaced review* below). Tap a word for its sentence and clue, and to hear it. The Curse-Breaking Tower's spotting round does not count, because it tests recognition rather than spelling.
-- **Badges:** 16 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered on 3 separate days, four rank-ups, dungeon cleared, Curse Breaker, Duel Winner). They are awarded by the server and shown on the **Me** tab.
+- **Badges:** 17 badges (first spell, 100 and 500 right, Flawless 10, 3, 7 and 30 day streaks, 10 and 50 words mastered on 3 separate days, four rank-ups, dungeon cleared, Curse Breaker, Duel Winner, Forgemaster). They are awarded by the server and shown on the **Me** tab.
 - **Feel:** sound effects (switch off under **Me**), vibration on wrong answers on phones, a combo counter, confetti on round results and rank-ups, and a letter-by-letter comparison of the pupil's spelling with the correct word. Reduced-motion settings are respected.
 - **Phones and tablets:** large touch targets, answer boxes with autocorrect and auto-capitalise turned off, and a 🐢 slow replay button for words.
 
@@ -113,6 +115,16 @@ Every word a pupil answers gets a review box (0 to 5) and a due date, kept in th
 - **Error types:** each wrong answer is tagged when it is saved (`attempts.etype`): *Vowel pattern*, *Double or single letters*, *Sounds right, spelled wrong*, *Missing letter*, *Extra letter*, *Swapped letters* or *Other*. Swapped vowels such as ie/ei count as vowel pattern. Blank answers (timeouts) get no tag. Older attempts have no stored tag; dashboards classify them on the fly from the wrong spelling, so history shows up immediately.
 - Modes 1 to 3 are still judged by the browser, so treat error-type counts from them as practice data, like their XP.
 
+## Word Forge (v2.4)
+Pupils join a root and an ending (`hope + ing`) or a prefix and a root (`in- + legal`) and type the result. About a third of the items are *fix* rounds that show the classic wrong join (`hopeing`, `stoping`, `happyness`) and ask for the correct spelling. Three tries per item: the first miss names the rule, the second gives the rule in words and the start of the word. Every item, right or wrong, ends with a rule card and a worked example, because the rule is the thing being taught.
+- **Content:** `src/forge.js` holds 184 items under 22 rules, tagged by level (38 at P3, 46 at P4, 69 at P5, 31 at P6): join as-is, drop the silent e, keep the silent e (and its rule-breakers), soft c and g, -ee/-ye and ie→y, doubling for short words and for stressed last syllables, when not to double, y→i and keeping the y, plurals in -es, f→ves (and f words that do not change), words in -o, -le→-ly, -fully and -ally, -ically, adding k (panicked), keeping both letters at a prefix join (misspell), and in- becoming il-/im-/ir-. Each rule has a short checker, so a test can prove every item follows its rule.
+- **Which items a class gets:** Settings → *Word Forge level*. *Automatic* uses the highest P-level among the class's ticked word lists (and all levels if none is ticked). Or fix it at P3 only, up to P4, P5 or P6, or all. Items of a lower level are always included.
+- **Spaced review:** answers feed the same review schedule as the word rooms (the key is the built word, for example `hoping`), so Forge items come back when due. Built words also appear in the Spellbook with their sentence and rule.
+- **Teachers:** the class Overview and each pupil's page have a **Word Forge rules** card showing accuracy per rule, weakest first. Forge answers count in the Kinds of mistakes card (a missing double is *Double or single letters*; `hopeing` is *Extra letter*).
+- **Guests** can play a short Forge round (P3 and P4 items).
+- Forge answers are judged by the browser, like Echo Hall, so treat the XP as practice. A Forgemaster badge is awarded for 50 right answers.
+- To add items, append lines to `DATA` in `src/forge.js` (`left+right=result|rule|level|sentence with {w}`; results must be unique).
+
 ## Duel Arena
 Duels are now checked by the server. It deals each player three words, marks every spelling, rejects impossible speeds, awards the XP (capped at 300 per visit), and records wins. Pupils cannot send their own words or text to opponents. A pupil can only be in a room once, and a duel needs a second player before spells can be cast. The last wizard standing wins, earns the **Duel Winner** badge (the 16th badge), and anyone can press **Rematch**. Guests can duel but earn no XP. A teacher who locks the Duel Arena for a class locks it for those pupils.
 
@@ -126,7 +138,7 @@ Duels are now checked by the server. It deals each player three words, marks eve
 The login screen has a **Play as guest** button. Guests play Echo Hall, Mending Workshop, Curse-Breaking Tower and the Duel Arena with the built-in words. Their XP is not saved, teachers do not see them in analytics, and the Wraith Dungeon needs a real account. To hide the button, set `GUEST=false` at the top of the script in `public/index.html`.
 
 ## Upgrading from the first version
-Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then `migrations/009_checkpoints.sql` (dungeon checkpoints, v2.2; run it BEFORE deploying v2.2), then `migrations/010_spaced_review.sql` (spaced review and error types, v2.3; run it BEFORE deploying v2.3, because the new code writes to the new column and table), then commit the new files to GitHub.
+Run `migrations/002_class_settings.sql` once in the D1 Console, then `migrations/003_runs.sql` (dungeon), then `migrations/004_wordlists.sql` (word lists), then `migrations/005_list_levels.sql` (level tags), then `migrations/006_review.sql` (review), then `migrations/007_progress.sql` (badges and streaks), then `migrations/008_duels_analytics.sql` (duel wins and wrong-spelling analytics), then `migrations/009_checkpoints.sql` (dungeon checkpoints, v2.2; run it BEFORE deploying v2.2), then `migrations/010_spaced_review.sql` (spaced review and error types, v2.3; run it BEFORE deploying v2.3, because the new code writes to the new column and table), then commit the new files to GitHub. v2.4 (Word Forge) needs no new migration.
 
 ## Word lists
 Seven lists are built in: **Default** (the original mixed list, used by guests), and **Primary 1** to **Primary 6**. All six levels are written with 100 words each (600 in total), and no word appears in more than one built-in list (Default included). To add words, append lines to the matching list in this file, or have teachers create custom lists in the dashboard. They live in `src/words.js`, one `word|sentence with {w}|clue` per line.
