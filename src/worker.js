@@ -1,6 +1,7 @@
 import {LISTS} from './words.js';
 import Spelling from '../public/spelling.js'; // shared with the browser: misspelling generator and error classifier
 const {mis,classify}=Spelling;
+import {FORGE,RULES,forgeBy,forgeRules} from './forge.js'; // Word Forge: roots, endings and the rules that join them
 const PARSED=Object.fromEntries(Object.entries(LISTS).map(([k,v])=>[k,v.w.split('\n').filter(Boolean).map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}))]));
 const flagsFor=(ws,lv,sh,id)=>{const seen=new Set(),out=[];for(const x of ws){const why=[];if(seen.has(x.w))why.push('repeated in this list');seen.add(x.w);lv.forEach(v=>{if((PARSED[v]||[]).some(y=>y.w==x.w))why.push('already in '+v.toUpperCase())});sh.forEach(o=>{if(o.id!=id&&o.v.some(v=>lv.includes(v))&&o.s.has(x.w))why.push('in shared list "'+o.name+'"')});if(why.length)out.push({w:x.w,why:why.join('; ')})}return out};
 const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
@@ -12,7 +13,7 @@ async function hash(pw,salt){const k=await crypto.subtle.importKey('raw',enc.enc
 const lvl=x=>Math.floor(x/150)+1;
 const HEAL_MAX=3,EV_MAX=6,RUN_XP_CAP=1500; // per dungeon run: max heals, max random events, max XP
 const START_HEARTS=3,FLOOR=10; // dungeon: hearts at the start (each fall returns the pupil to the last checkpoint with one fewer; the run ends after START_HEARTS falls) and correct answers per floor/checkpoint (the app has 10 story chapters, so keep FLOOR=10 unless you add chapters)
-const GATE={1:1,2:10,3:20,4:5,d:1},MM={1:'1',2:'2',spot1:'3',spot2:'3',duel:'d'};
+const GATE={1:1,2:10,3:20,4:5,d:1,f:1},MM={1:'1',2:'2',spot1:'3',spot2:'3',duel:'d',f:'f'};
 const un=(s,m,xp)=>{const v=(s.modes||{})[m]||'auto';return v==='open'||(v==='auto'&&lvl(xp)>=GATE[m])};
 const ms=(s,xp)=>Object.fromEntries(Object.keys(GATE).map(m=>[m,un(s,m,xp)||((s.modes||{})[m]==='locked'?'L':GATE[m])]));
 const gain=(ok,tries,ms,focus)=>{if(!ok)return 1;const base=[0,10,6,3][tries]||3;return Math.round(base+Math.max(0,1-ms/20000)*(focus=='spd'?15:5))};
@@ -23,6 +24,24 @@ async function bankForD(D,code){const r=await D.prepare('select list from class_
   else if(/^c\d+$/.test(id)){const l=await D.prepare('select words from lists where id=?').bind(+id.slice(1)).first();if(l)out=out.concat(JSON.parse(l.words))}}
  return[...new Map(out.map(x=>[x.w,x])).values()]}
 const clean=x=>String(x||'').toLowerCase().replace(/[^a-z' -]/g,'').slice(0,40)||null; // wrong spellings kept for teacher analytics
+
+// ---- Review queue shared by the word rooms and the Word Forge ----
+// Due items first (most overdue first), then new ones, then ones not yet due. When there is a backlog a third of the round is kept for new items.
+// sm maps an item's key to its due day; hit(item) optionally floats items up (used to target a pupil's recurring kind of slip).
+function queue(items,key,sm,today,n,hit){const due=[],fresh=[],ahead=[];
+ for(const o of items){const d=sm.get(key(o)),h=hit?hit(o):false;if(d===undefined)fresh.push([o,(h?0:1)+Math.random()*.9]);else if(d<=today)due.push([o,d-(h?.5:0)+Math.random()*.4]);else ahead.push([o,d+Math.random()*.4])}
+ const by=l=>l.sort((x,y)=>x[1]-y[1]).map(x=>x[0]),D1=by(due),F1=by(fresh),A1=by(ahead),nn=Math.min(F1.length,D1.length>=n?Math.floor(n/3):n-D1.length),dd=Math.min(D1.length,n-nn);
+ const out=[...D1.slice(0,dd).map(o=>({o,r:'due'})),...F1.slice(0,nn).map(o=>({o,r:'new'}))];
+ for(const[l,r]of[[D1.slice(dd),'due'],[F1.slice(nn),'new'],[A1,'ahead']])for(const o of l){if(out.length>=n)break;out.push({o,r})}
+ return out.sort(()=>Math.random()-.5)}
+// Which Word Forge items a class gets: a teacher setting (p3 to p6, or all), or by default the highest level among the class's ticked word lists.
+async function forgePool(D,code){const set=await classSettings(D,code),v=set.forge||'auto';let mx;
+ if(/^p[3-6]$/.test(v))mx=+v[1];else if(v==='all')mx=6;else{const ids=(await D.prepare('select list from class_lists where code=?').bind(code).all()).results.map(x=>x.list).filter(x=>/^p[1-6]$/.test(x)).map(x=>+x[1]);mx=ids.length?Math.max(...ids):6}
+ return FORGE.filter(x=>x.lv<=Math.max(3,mx))}
+const pubForge=x=>({w:x.w,l:x.l,r:x.r,pre:x.pre,rule:x.rule,s:x.s});
+const forgeFallback=w=>{const f=forgeBy.get(w);return f?{s:f.s,h:RULES[f.rule].n+': '+RULES[f.rule].ex}:null};
+// Accuracy by Word Forge rule, from attempts rows {word,n,k}
+const forgeStats=rows=>{const m={};for(const x of rows){const f=forgeBy.get(x.word);if(!f)continue;const o=m[f.rule]=m[f.rule]||{rule:f.rule,name:RULES[f.rule].n,att:0,k:0};o.att+=x.n;o.k+=x.k}return Object.values(m).sort((a,b)=>a.k/a.att-b.k/b.att)};
 
 // ---- Progress: daily streak, mastery and badges (all derived from the attempts table) ----
 const GOAL=5,SGT=28800; // daily goal = 5 answers; days are counted in Singapore time
@@ -71,10 +90,11 @@ async function progress(D,st){const id=st.id,now=Math.floor(Date.now()/1000),tod
   D.prepare("select count(*) n from attempts where student_id=? and mode='spot2' and ok=1").bind(id),
   D.prepare("select 1 x from runs where student_id=? and status='won' limit 1").bind(id),
   D.prepare('select badge,ts from badges where student_id=?').bind(id),
-  D.prepare('select count(*) n from duel_wins where student_id=?').bind(id)]);
- const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n;
+  D.prepare('select count(*) n from duel_wins where student_id=?').bind(id),
+  D.prepare("select count(*) n from attempts where student_id=? and mode='f' and ok=1").bind(id)]);
+ const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n;
  const s=streakOf(days,today),k=tot.k,l=lvl(st.xp);
- const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1};
+ const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50};
  const owned=new Set(have.map(x=>x.badge)),fresh=Object.keys(earned).filter(b=>earned[b]&&!owned.has(b));
  if(fresh.length)await D.batch(fresh.map(b=>D.prepare('insert or ignore into badges(student_id,badge) values(?,?)').bind(id,b)));
  const t=days.find(x=>x.d==today);
@@ -87,6 +107,7 @@ if(p==='/ws/duel'){const room=(u.searchParams.get('room')||'X').toUpperCase().sl
  const h=new Headers(req.headers);['x-sid','x-name','x-code'].forEach(k=>h.delete(k));h.set('x-sid',String(sid));h.set('x-name',name);h.set('x-code',code); // identity comes from the signed token, never from the client
  return env.DUEL.get(env.DUEL.idFromName(room)).fetch(new Request(req,{headers:h}))}
 if(p==='/api/guest-words')return J(PARSED.default);
+if(p==='/api/guest-forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6));return J({rules:forgeRules(),items:FORGE.filter(x=>x.lv<=4).sort(()=>Math.random()-.5).slice(0,n).map(pubForge)})}
 const b=req.method==='POST'?await req.json().catch(()=>({})):{};
 const a=await verify(env,(req.headers.get('authorization')||'').slice(7)),D=env.DB;
 const T=a&&a.r==='t',St=a&&a.r==='s';
@@ -152,12 +173,12 @@ if(St&&p==='/api/lists'){const eb=await errBank(D,a.code);return J((await bankFo
 // The review queue: words due for review first (most overdue first), then new words. Up to a third of a round is kept for new words when there is a backlog.
 if(St&&p==='/api/due'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),today=dayNo(Math.floor(Date.now()/1000));await ensureState(D,a.id);
  const [bank,eb,wk,st]=await Promise.all([bankFor(a.code),errBank(D,a.code),weakTypes(D,a.id),D.prepare('select word,due from word_state where student_id=?').bind(a.id).all()]),sm=new Map(st.results.map(x=>[x.word,x.due])),W=new Set(wk);
- const hit=w=>W.size&&[...Spelling.types(w.w)].some(t=>W.has(t)),due=[],fresh=[],ahead=[];
- for(const w of bank){const d=sm.get(w.w),o={...w,x:eb.get(w.w)||[]};if(d===undefined)fresh.push([o,(hit(w)?0:1)+Math.random()*.9]);else if(d<=today)due.push([o,d-(hit(w)?.5:0)+Math.random()*.4]);else ahead.push([o,d+Math.random()*.4])}
- const by=l=>l.sort((x,y)=>x[1]-y[1]).map(x=>x[0]),D1=by(due),F1=by(fresh),A1=by(ahead),nn=Math.min(F1.length,D1.length>=n?Math.floor(n/3):n-D1.length),dd=Math.min(D1.length,n-nn);
- let out=[...D1.slice(0,dd).map(o=>({...o,r:'due'})),...F1.slice(0,nn).map(o=>({...o,r:'new'}))];
- for(const[l,r]of[[D1.slice(dd),'due'],[F1.slice(nn),'new'],[A1,'ahead']])for(const o of l){if(out.length>=n)break;out.push({...o,r})}
- return J(out.sort(()=>Math.random()-.5))}
+ const hit=w=>W.size&&[...Spelling.types(w.w)].some(t=>W.has(t));
+ return J(queue(bank.map(w=>({...w,x:eb.get(w.w)||[]})),w=>w.w,sm,today,n,hit).map(x=>({...x.o,r:x.r})))}
+// Word Forge: a round of root + ending items, chosen by the same review queue (due first, then new).
+if(St&&p==='/api/forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),today=dayNo(Math.floor(Date.now()/1000));await ensureState(D,a.id);
+ const [pool,st]=await Promise.all([forgePool(D,a.code),D.prepare('select word,due from word_state where student_id=?').bind(a.id).all()]);
+ return J({rules:forgeRules(),items:queue(pool,x=>x.w,new Map(st.results.map(x=>[x.word,x.due])),today,n).map(x=>pubForge(x.o))})}
 if(St&&p==='/api/attempt'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first(),set=await cs(a.code);if(!un(set,MM[b.mode],x0.xp))return J({error:'locked'},403);const g=gain(b.ok,b.tries,b.ms,b.focus),ans=b.ok?null:clean(b.ans),spot=b.mode==='spot1'; // spot1 only tests recognising a wrong spelling, so it never touches the review schedule
  if(!spot)await ensureState(D,a.id);
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,String(b.mode),String(b.word),b.ok?1:0,b.tries|0,b.ms|0,g,ans,ans?classify(String(b.word),ans):null),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),...(spot?[]:[await stateStmt(D,a.id,b.word,!!b.ok,b.tries|0)])]);
@@ -168,7 +189,7 @@ if(St&&p==='/api/progress'){const m=await D.prepare('select xp from students whe
  return J({xp:m.xp,streak:pg.streak,mastered:pg.mastered,due:dn,badges:pg.have,fresh:pg.fresh,modes:ms(await cs(a.code),m.xp)})}
 if(St&&p==='/api/spellbook'){await ensureState(D,a.id);const bank=new Map((await bankFor(a.code)).map(x=>[x.w,x])),today=dayNo(Math.floor(Date.now()/1000));
  const [rows,st]=(await D.batch([D.prepare("select word,count(*) n,sum(ok) k from attempts where student_id=? and mode!='spot1' group by word order by max(id) desc limit 500").bind(a.id),D.prepare('select word,box,due from word_state where student_id=?').bind(a.id)])).map(x=>x.results),sm=new Map(st.map(x=>[x.word,x])),met=new Set(st.map(x=>x.word));
- return J({today,words:rows.map(x=>{const b=bank.get(x.word)||{},q=sm.get(x.word)||{box:0,due:today};return{w:x.word,n:x.n,k:x.k,m:q.box>=MASTER_BOX?1:0,b:q.box,d:q.due,s:b.s,h:b.h}}),unseen:[...bank.keys()].filter(w=>!met.has(w)).length})}
+ return J({today,words:rows.map(x=>{const b=bank.get(x.word)||forgeFallback(x.word)||{},q=sm.get(x.word)||{box:0,due:today};return{w:x.word,n:x.n,k:x.k,m:q.box>=MASTER_BOX?1:0,b:q.box,d:q.due,s:b.s,h:b.h}}),unseen:[...bank.keys()].filter(w=>!met.has(w)).length})}
 if(T){
  if(p==='/api/teacher/wordlists'){const mine=(await D.prepare('select id,name,words,levels,shared,declined from lists where owner=?').bind(a.id).all()).results,sh=(await D.prepare("select words,shared from lists where shared!='[]'").all()).results;return J({builtin:Object.entries(LISTS).map(([id,v])=>({id,name:v.n,count:new Set([...PARSED[id].map(w=>w.w),...mine.filter(x=>(x.levels||'').includes('"'+id+'"')).flatMap(x=>JSON.parse(x.words).map(w=>w.w)),...sh.filter(x=>(x.shared||'').includes('"'+id+'"')).flatMap(x=>JSON.parse(x.words).map(w=>w.w))]).size})),custom:mine.map(x=>({id:'c'+x.id,name:x.name,count:JSON.parse(x.words).length,levels:JSON.parse(x.levels||'[]'),shared:JSON.parse(x.shared||'[]'),declined:JSON.parse(x.declined||'[]')}))})}
  if(p==='/api/teacher/listtags'){const l=await D.prepare('select * from lists where id=? and owner=?').bind(+String(b.id||'').slice(1),a.id).first();if(!l)return J({ok:false});const lv=lv6(b.levels),keep=x=>JSON.parse(x||'[]').filter(v=>lv.includes(v));
@@ -182,7 +203,7 @@ if(T){
  if(p==='/api/teacher/assign'){const c=(b.code||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
   const mine=(await D.prepare('select id from lists where owner=?').bind(a.id).all()).results.map(x=>'c'+x.id),ids=[...new Set(b.lists||[])].filter(i=>LISTS[i]||mine.includes(i));
   await D.batch([D.prepare('delete from class_lists where code=?').bind(c),...ids.map(i=>D.prepare('insert into class_lists(code,list) values(?,?)').bind(c,i))]);return J({ok:1,lists:ids})}
- if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
+ if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';set.forge=/^(auto|all|p[3-6])$/.test(b.forge||'')?b.forge:'auto';await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
  if(p==='/api/teacher/students'){const c=(b.code||u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
   if(req.method==='POST'){const n=[...new Set((b.text||'').split('\n').map(x=>x.trim().slice(0,30)).filter(Boolean))].slice(0,200);if(!n.length)return J({added:0,total:0});
    const r=await D.batch(n.map(x=>D.prepare('insert or ignore into students(name,code) values(?,?)').bind(x,c)));return J({added:r.reduce((t,x)=>t+x.meta.changes,0),total:n.length})}
@@ -222,14 +243,15 @@ if(T){
    D.prepare("select s.id,s.name,s.xp,count(a.id) n,coalesce(sum(a.ok),0) ok,max(a.ts) last,coalesce(sum(case when a.ts>=? then 1 else 0 end),0) w1,coalesce(sum(case when a.ts>=? then a.ok else 0 end),0) w1ok,coalesce(sum(case when a.ts>=? and a.ts<? then 1 else 0 end),0) w0,coalesce(sum(case when a.ts>=? and a.ts<? then a.ok else 0 end),0) w0ok from students s left join attempts a on a.student_id=s.id and a.mode!='spot1' where s.code=? group by s.id order by s.name").bind(c1,c1,c2,c1,c2,c1,c),
    D.prepare("select a.student_id sid,(a.ts+28800)/86400 d,count(*) c from attempts a join students s on s.id=a.student_id where s.code=? and a.mode!='spot1' and a.ts>=? group by a.student_id,d").bind(c,now-60*86400),
    D.prepare("select a.word,count(*) n,sum(1-a.ok) miss from attempts a join students s on s.id=a.student_id where s.code=? and a.mode!='spot1' group by a.word having count(*)>=3 and sum(1-a.ok)>0 order by sum(1-a.ok)*1.0/count(*) desc,sum(1-a.ok) desc limit 10").bind(c),
-   D.prepare("select a.word,a.ans,max(a.etype) et,count(*) c from attempts a join students s on s.id=a.student_id where s.code=? and a.ok=0 and a.ans is not null and a.ans!='' group by a.word,a.ans order by c desc").bind(c)]);
+   D.prepare("select a.word,a.ans,max(a.etype) et,count(*) c from attempts a join students s on s.id=a.student_id where s.code=? and a.ok=0 and a.ans is not null and a.ans!='' group by a.word,a.ans order by c desc").bind(c),
+   D.prepare("select a.word,count(*) n,coalesce(sum(a.ok),0) k from attempts a join students s on s.id=a.student_id where s.code=? and a.mode='f' group by a.word").bind(c)]);
   const dm={};r[1].results.forEach(x=>(dm[x.sid]=dm[x.sid]||[]).push({d:x.d,c:x.c}));const wr={};r[3].results.forEach(x=>(wr[x.word]=wr[x.word]||[]).push({a:x.ans,c:x.c,et:x.et||classify(x.word,x.ans)}));
   const pupils=r[0].results.map(s=>{const rows=dm[s.id]||[],cnt=d=>(rows.find(x=>x.d==d)||{c:0}).c,a1=s.w1?s.w1ok/s.w1:null,a0=s.w0?s.w0ok/s.w0:null,flags=[];
    if(!s.n)flags.push('Not started');else if(s.last<now-7*86400)flags.push('Inactive 7+ days');
    if(s.w1>=10&&a1<.6)flags.push('Accuracy under 60%');if(s.w1>=8&&s.w0>=8&&a1<=a0-.15)flags.push('Accuracy dropping');
    return{id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:s.n,acc:s.n?s.ok/s.n:null,last:s.last,w1:s.w1,a1,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>cnt(today-13+i)),flags,goal:cnt(today)>=GOAL}});
   const t=r[0].results.reduce((o,s)=>({w1:o.w1+s.w1,k1:o.k1+s.w1ok,w0:o.w0+s.w0,k0:o.k0+s.w0ok}),{w1:0,k1:0,w0:0,k0:0});
-  return J({today,goal:GOAL,pupils,sum:{pupils:pupils.length,active:pupils.filter(x=>x.w1>0).length,words7:t.w1,acc1:t.w1?t.k1/t.w1:null,acc0:t.w0?t.k0/t.w0:null,goalToday:pupils.filter(x=>x.goal).length},errs:errMix(r[3].results),words:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)}))})}
+  return J({today,goal:GOAL,pupils,sum:{pupils:pupils.length,active:pupils.filter(x=>x.w1>0).length,words7:t.w1,acc1:t.w1?t.k1/t.w1:null,acc0:t.w0?t.k0/t.w0:null,goalToday:pupils.filter(x=>x.goal).length},errs:errMix(r[3].results),forge:forgeStats(r[4].results),words:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)}))})}
  if(p==='/api/teacher/pupil'){const id=+u.searchParams.get('id'),s=await D.prepare('select s.id,s.name,s.xp,s.code from students s join classes c on c.code=s.code where s.id=? and c.teacher_id=?').bind(id,a.id).first();if(!s)return J({error:'Not found'},404);
   const now=Math.floor(Date.now()/1000),today=dayNo(now);await ensureState(D,id);const r=await D.batch([
    D.prepare("select count(*) n,coalesce(sum(ok),0) k,max(ts) last from attempts where student_id=? and mode!='spot1'").bind(id),
@@ -239,9 +261,10 @@ if(T){
    D.prepare("select mode,count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode!='spot1' group by mode").bind(id),
    D.prepare("select coalesce(max(max(correct,coalesce(peak,0))),0) best,count(*) runs from runs where student_id=?").bind(id),
    D.prepare("select count(*) n from badges where student_id=?").bind(id),
-   D.prepare("select count(*) n from word_state where student_id=? and box>=?").bind(id,MASTER_BOX)]);
+   D.prepare("select count(*) n from word_state where student_id=? and box>=?").bind(id,MASTER_BOX),
+   D.prepare("select word,count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode='f' group by word").bind(id)]);
   const rows=r[1].results,wr={};r[3].results.forEach(x=>(wr[x.word]=wr[x.word]||[]).push({a:x.ans,c:x.c,et:x.et||classify(x.word,x.ans)}));const t=r[0].results[0];
-  return J({id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:t.n,acc:t.n?t.k/t.n:null,last:t.last,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>(rows.find(x=>x.d==today-13+i)||{c:0}).c),weak:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)})),modes:r[4].results,dungeon:r[5].results[0],badges:r[6].results[0].n,mastered:r[7].results[0].n,errs:errMix(r[3].results)})}
+  return J({id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:t.n,acc:t.n?t.k/t.n:null,last:t.last,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>(rows.find(x=>x.d==today-13+i)||{c:0}).c),weak:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)})),modes:r[4].results,dungeon:r[5].results[0],badges:r[6].results[0].n,mastered:r[7].results[0].n,errs:errMix(r[3].results),forge:forgeStats(r[8].results)})}
  if(p==='/api/analytics'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await D.prepare('select 1 from classes where code=? and teacher_id=?').bind(c,a.id).first())return J({error:'Not your class'},403);
   const st=await D.prepare('select s.name,s.xp,count(a.id) n,coalesce(sum(a.ok),0) ok,coalesce(avg(a.ms),0) ms from students s left join attempts a on a.student_id=s.id where s.code=? group by s.id').bind(c).all();
   const wd=await D.prepare('select a.word,count(*) n,sum(1-a.ok) miss from attempts a join students s on s.id=a.student_id where s.code=? group by a.word order by miss desc limit 10').bind(c).all();
