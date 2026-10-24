@@ -30,12 +30,12 @@ function snd(){localStorage.sa_mute=muted()?'0':'1';sfx('ok');me()}
 function logout(){S={};save();login()}
 async function guest(){S={guest:1,name:'Guest',xp:0,modes:{1:true,2:true,3:true,4:'L',d:true,f:true}};await load();home()}
 async function report(it,mode,ok,tries,ms,ans){if(S.guest){const g=!ok?1:Math.round(([0,10,6,3][tries]||3)+Math.max(0,1-ms/20000)*(focus=='spd'?15:5));S.xp+=g;return g}
- const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus,ans});if(r.error){alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);return 0}S.xp=r.xp;S.modes=r.modes;save();fx(r);return r.gain}
+ const r=await api('attempt',{mode,word:it.w,ok,tries,ms,focus,ans});if(r.error){alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);return 0}RAN++;S.xp=r.xp;S.modes=r.modes;save();fx(r);return r.gain}
 async function play(m){if(m==3&&words.length<4)return alert('This word list needs at least 4 words for the Curse-Breaking Tower.');
- const b4={...S.modes},l0=lv(S.xp);let tot=0;const q=await sched(m==3?8:6),n=m==3?Math.min(2,Math.floor(q.length/4)):q.length;combo=0; // q: missed words first, then due, then new. Each word appears once per round; resting words are never used to pad it
+ const b4={...S.modes},l0=lv(S.xp);let tot=0;const q=await sched(m==3?8:6),n=m==3?Math.min(2,Math.floor(q.length/4)):q.length;combo=0;QUIT=false;RAN=0; // q: missed words first, then due, then new. Each word appears once per round; resting words are never used to pad it
  if(!n)return caughtUp();
- for(let i=0;i<n;i++)tot+=m==3?await spot(q.slice(i*4,i*4+4)):await single(q[i],m,i+1,n);
- return done(tot,b4,l0)}
+ for(let i=0;i<n&&!QUIT;i++)tot+=m==3?await spot(q.slice(i*4,i*4+4)):await single(q[i],m,i+1,n);
+ return QUIT?abandon(tot):done(tot,b4,l0)}
 function caughtUp(){R(hdr()+`<div class="card center"><h2>🌙 All caught up</h2><p>Every word you know is resting, so none will repeat today. Missed words come back a few minutes after you miss them. Try another room, or come back later.</p></div><button class="wide big" onclick=home()>Back to the Academy</button>`)}
 function done(tot,b4,l0){
  const l1=lv(S.xp),nu=MD.filter(x=>S.modes[x[0]]===true&&b4[x[0]]!==true).map(x=>x[2]);
@@ -67,13 +67,13 @@ async function tres(id){const r=await api('trial/result?id='+id);if(r.error)retu
 // ---- Word Forge: join a root and an ending (or a prefix and a root) and apply the spelling rule ----
 async function forge(){const r=S.guest?await fetch('/api/guest-forge?n=6').then(x=>x.json()).catch(()=>({})):await api('forge?n=6');
  if(r.error)return alert(r.error=='locked'?'This room has been sealed by your teacher.':r.error);if(!r.items||!r.items.length)return S.guest?alert('No Forge words yet.'):caughtUp();
- const b4={...S.modes},l0=lv(S.xp);let tot=0;combo=0;for(let i=0;i<r.items.length;i++)tot+=await forgeItem(r.items[i],r.rules,i+1,r.items.length);return done(tot,b4,l0)}
+ const b4={...S.modes},l0=lv(S.xp);let tot=0;combo=0;QUIT=false;RAN=0;for(let i=0;i<r.items.length&&!QUIT;i++)tot+=await forgeItem(r.items[i],r.rules,i+1,r.items.length);return QUIT?abandon(tot):done(tot,b4,l0)}
 function forgeItem(it,rules,i,n){return new Promise(res=>{SPW=wcol();let tries=0,t0=Date.now(),last='';
  const ru=rules[it.rule]||{n:'',t:'',ex:''},naive=(it.pre?it.l.slice(0,-1):it.l)+it.r,fix=naive!==it.w&&Math.random()<.34; // "fix" rounds show the naive join, the classic mistake
  const eq=`<div class=forge><span class=fp>${esc(it.l)}</span><b>+</b><span class=fp>${esc(it.r)}</span><b>=</b>${fix?`<span class="fp bad">${esc(naive)}</span>`:'<span class=fp>?</span>'}</div>`;
- R(hdr()+`${battle('sp',SPW)}<div class=card><div class=prog><small>Forge ${i}/${n}</small>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p><small>${fix?'The forge went wrong! Write the correct spelling.':'Join them. Mind the rule!'}</small></p>${eq}<p>${esc(it.s).replace('{w}','_____')}</p><input id=a class=ans ${AI}><button id=go class=wide>Forge!</button><p id=f></p></div>`);
+ R(hdr()+`${battle('sp',SPW)}<div class=card><div class=prog><small>Forge ${i}/${n}</small>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p><small>${fix?'The forge went wrong! Write the correct spelling.':'Join them. Mind the rule!'}</small></p>${eq}<p>${esc(it.s).replace('{w}','_____')}</p><input id=a class=ans ${AI}><button id=go class=wide>Forge!</button><p id=f></p>${GU}</div>`);QR=()=>res(0);
  const card=`<div class=rule><b>🔨 ${esc(ru.n)}</b><br><small>${esc(ru.t)}</small><br><small><b>${esc(ru.ex)}</b></small></div>`;
- const fin=async ok=>{react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report({w:it.w},'f',ok,tries,Date.now()-t0,last);
+ const fin=async ok=>{rmGu();react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report({w:it.w},'f',ok,tries,Date.now()-t0,last);
   $('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP${combo>1?' · 🔥 combo x'+combo:''}</span>`:`<span class=bad>The word is <b>${esc(it.w)}</b>.</span><br>${last?diff(last,it.w)+'<br>':''}`)+card+'<button id=nx class=wide>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g);$('#nx').focus()};
  $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();last=v;tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);react('no');sfx('no');buzz(60);
   $('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?'Think about this rule: <b>'+esc(ru.n)+'</b>.':esc(ru.t)+' It begins "'+esc(it.w.slice(0,Math.ceil(it.w.length/2)))+'…"')+` (${3-tries} left)</span>`;$('#a').select()};
@@ -92,8 +92,8 @@ function cast(e,k){if(!e)return;const p=e.querySelector('.pz'),ws=[...e.querySel
 
 function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol();let tries=0,t0=Date.now(),left=20,last='';
  const sc=esc(it.s).replace('{w}',mode==2?`<b class=bad>${esc(shown||mis(it.w,it.x))}</b> <input id=a class="ans inl" size=12 ${AI}>`:'_____');
- R(hdr()+`${battle('sp',SPW)}<div class=card><div class=prog><small>Spell ${i}/${n}</small><span id=tm></span>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p>${mode==1?`<span class=row><button onclick="say(cur.w)">🔊 Hear</button><button class=ghost onclick="say(cur.w,.5)">🐢 Slow</button><button class=ghost onclick=sayS()>💬 Sentence</button></span><input id=a class=ans ${AI}>`:sc}</p><button id=go class=wide>Cast!</button><p id=f></p></div>`);
- const fin=async ok=>{clearInterval(timer);react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report(it,tag||mode,ok,tries,Date.now()-t0,last);
+ R(hdr()+`${battle('sp',SPW)}<div class=card><div class=prog><small>Spell ${i}/${n}</small><span id=tm></span>${combo>1?`<span class=cmb>🔥 x${combo}</span>`:''}</div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p>${mode==1?`<span class=row><button onclick="say(cur.w)">🔊 Hear</button><button class=ghost onclick="say(cur.w,.5)">🐢 Slow</button><button class=ghost onclick=sayS()>💬 Sentence</button></span><input id=a class=ans ${AI}>`:sc}</p><button id=go class=wide>Cast!</button><p id=f></p>${GU}</div>`);QR=()=>res(0);
+ const fin=async ok=>{clearInterval(timer);rmGu();react(ok?'ok':'no');combo=ok?combo+1:0;sfx(ok?'ok':'no');if(!ok)buzz(120);const g=await report(it,tag||mode,ok,tries,Date.now()-t0,last);
   $('#f').innerHTML=(ok?`<span class=ok>✨ +${g} XP${combo>1?' · 🔥 combo x'+combo:''}</span>`:`<span class=bad>The word is <b>${esc(it.w)}</b>.</span><br>${last?diff(last,it.w)+'<br>':''}📖 ${esc(it.h)}`)+'<br><button id=nx class=wide>Next</button>';$('#go').remove();$('#nx').onclick=()=>res(g);$('#nx').focus()};
  $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();last=v;tries++;if(v==it.w)return fin(true);if(tries>=3)return fin(false);
   react('no');sfx('no');buzz(60);$('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?`It starts with "${esc(it.w[0])}" and has ${it.w.length} letters.`:`${esc(it.h)} It begins "${esc(it.w.slice(0,Math.ceil(it.w.length/2)))}…"`)+` (${3-tries} left)</span>`;$('#a').select()};
@@ -104,9 +104,9 @@ function spotFx(bad,sel){const hit=[...bad].filter(i=>sel.has(i)).length,fp=[...
  R(hdr()+`<div id=sp class="card stage battle"><span class=pz><img class=pl src="/img/p_${RN[rk(S.xp||0)]}.png" alt=""></span><span class=wzs>${[...bad].map(i=>`<span class=wz${sel.has(i)?'':' data-m=1'}><img class=wr src="/img/w_${wcol()}.png" alt=""></span>`).join('')}</span></div><div class="card center"><p>${hit}/${bad.size} cursed words found${fp?`, ${fp} false alarm${fp>1?'s':''}`:''}. Now break each curse!</p><button id=nx class=wide>Continue</button></div>`);setTimeout(()=>cast($('#sp'),'ok'),250);return new Promise(r=>$('#nx').onclick=r)}
 async function spot(it){const bad=new Set();while(bad.size<2)bad.add(Math.floor(Math.random()*4));
  const sh=it.map((x,i)=>bad.has(i)?mis(x.w,x.x):x.w),sel=new Set(),t0=Date.now();let g=0;
- R(hdr()+`<div class=card><b>Tap the misspelled words, then submit.</b><p>${it.map((x,i)=>esc(x.s).replace('{w}',`<span class=w data-i=${i}>${esc(sh[i])}</span>`)).join(' ')}</p><button id=go class=wide>Submit</button></div>`);
+ R(hdr()+`<div class=card><b>Tap the misspelled words, then submit.</b><p>${it.map((x,i)=>esc(x.s).replace('{w}',`<span class=w data-i=${i}>${esc(sh[i])}</span>`)).join(' ')}</p><button id=go class=wide>Submit</button>${GU}</div>`);
  document.querySelectorAll('.w').forEach(e=>e.onclick=()=>{const i=+e.dataset.i;sel.has(i)?sel.delete(i):sel.add(i);e.classList.toggle('sel')});
- await new Promise(r=>$('#go').onclick=r);
+ await new Promise(r=>{$('#go').onclick=r;QR=r});if(QUIT)return 0;
  for(let i=0;i<4;i++)g+=await report(it[i],'spot1',sel.has(i)==bad.has(i),1,(Date.now()-t0)/4);
  await spotFx(bad,sel);let k=0;for(const i of bad)g+=await single(it[i],2,++k,bad.size,sh[i],'spot2');return g}
 let DG,DN;
@@ -114,6 +114,12 @@ function arena(k){const e=$('#ar');if(!e)return;e.classList.add('stage','battle'
  if(!e.querySelector('.pz')||k==''){fresh();return}
  if(k=='in'){fresh();cast(e,'no')}else if(k=='ok'){cast(e,'ok');setTimeout(fresh,1300)}else cast(e,'no')}
 function react(k){cast($('#sp'),k=='ok'?'ok':'no')}
+// ---- Give up: end the round now and keep none of its XP (the server takes back what this round earned) ----
+let QUIT=false,RAN=0,QR=null;const GU='<button id=gu class="ghost gu" onclick=gup(this)>🏳️ Give up</button>',rmGu=()=>{const g=$('#gu');if(g)g.remove()};
+function gup(b){if(!b.dataset.s){b.dataset.s=1;b.textContent='Sure? Tap again · no XP kept';b.classList.add('sure');setTimeout(()=>{if(b.isConnected){delete b.dataset.s;b.textContent='🏳️ Give up';b.classList.remove('sure')}},4000);return}
+ QUIT=true;clearInterval(timer);if(QR)QR()}
+async function abandon(tot){let lost=tot;if(S.guest)S.xp=Math.max(0,S.xp-tot);else{const r=await api('giveup',{n:RAN});if(!r.error){S.xp=r.xp;S.modes=r.modes;save();lost=r.lost}}
+ R(hdr()+`<div class="card center"><h2>🏳️ Round abandoned</h2><p>${lost?`The ${lost} XP from this round was not kept.`:'No XP was earned this round.'}</p><small>Words you answered still count towards your review schedule.</small></div><button class="wide big" onclick=home()>Back to the Academy</button>`)}
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function dstart(){const r=await api('run/start',{});if(r.error)return alert('The dungeon is sealed.');DG={run:r.run,tot:0,x:r};dchap(r,'',1)}
 function dshow(r,msg,kd){DG.ch=r.ch;const ch=r.ch;

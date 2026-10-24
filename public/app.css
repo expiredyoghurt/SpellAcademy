@@ -41,7 +41,7 @@ summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weig
 #nav button{flex:1;background:transparent;box-shadow:none;margin:0 2px;min-height:52px;padding:4px;display:flex;flex-direction:column;align-items:center;gap:0;font-size:12px;color:var(--mut);font-weight:600;border-radius:12px}
 #nav button i{font-style:normal;font-size:22px;line-height:1.2}#nav button.on{color:#fff;background:#ffffff1f}
 @media(min-width:760px){#nav{position:sticky;top:0;bottom:auto;border:0;border-bottom:1px solid #fff2;border-radius:0 0 18px 18px;padding:8px 16px}#nav button{flex-direction:row;justify-content:center;gap:8px;font-size:15px}}
-#toast{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:max-content;max-width:92vw}
+#toast{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:max-content;max-width:92vw}
 .tt{background:#fff;color:#1b1633;padding:10px 16px;border-radius:14px;font-weight:600;box-shadow:0 8px 24px #0008;animation:tin .3s}
 .cf{position:fixed;top:-30px;font-size:22px;animation:cfall 1.8s ease-in forwards;z-index:40;pointer-events:none}
 @keyframes tin{from{transform:translateY(-20px);opacity:0}}@keyframes cfall{to{transform:translateY(105vh) rotate(540deg)}}
@@ -100,5 +100,7 @@ button.sm{min-height:36px;padding:2px 10px;margin:0;font-size:.85em}
 .wz.strike{animation:strike .5s}
 @keyframes strike{40%{transform:translateX(-56px)}100%{transform:translateX(0)}}
 .pz.hit{animation:shk .45s .25s}
-@media(prefers-reduced-motion:reduce){.pz.lunge,.wz.strike,.pz.hit{animation:none}}
 .wzs{display:flex;gap:10px;align-items:flex-end}.wzs .wz img{height:96px}
+.battle{position:sticky;top:0;z-index:4}
+@media(max-height:560px){.battle{min-height:110px;padding-top:8px}.battle img{height:80px}.battle .wz img{height:72px}.wzs .wz img{height:64px}}
+.gu{margin-top:8px;width:100%;min-height:40px;font-size:.9em}.gu.sure{border-color:#ef4444;color:#fca5a5}
