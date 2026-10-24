@@ -184,6 +184,7 @@ if(St&&p==='/api/run/start'){const x0=await D.prepare('select xp from students w
  await D.prepare("update runs set status='abandoned' where student_id=? and status='active'").bind(a.id).run();
  await ensureState(D,a.id);const ch=await mkch(a),r=await D.prepare('insert into runs(student_id,hearts,correct,peak,deaths,cur) values(?,?,0,0,0,?)').bind(a.id,START_HEARTS,JSON.stringify(ch.cur)).run();
  return J({run:r.meta.last_row_id,hearts:START_HEARTS,correct:0,deaths:0,ch:ch.pub})}
+if(St&&p==='/api/run/giveup'){await D.prepare("update runs set status='abandoned' where id=? and student_id=? and status='active'").bind(b.run|0,a.id).run();return J({ok:1})} // the pupil quits the run: XP already earned stays, but the run can no longer be answered or resumed
 if(St&&p==='/api/run/ready'){await D.prepare("update runs set cur=json_set(cur,'$.t',?) where id=? and student_id=? and status='active'").bind(Date.now(),b.run|0,a.id).run();return J({ok:1})} // restarts the answer timer after a story screen, so reading never costs the speed bonus
 if(St&&p==='/api/run/answer'){const r=await D.prepare("select * from runs where id=? and student_id=? and status='active'").bind(b.run|0,a.id).first();if(!r)return J({error:'No active run'},400);
  const cur=JSON.parse(r.cur);cur.n++;const ok=String(b.a||'').trim().toLowerCase()===cur.w;
