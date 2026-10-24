@@ -118,6 +118,9 @@ Rules for when a word may appear, in every practice room (Echo Hall, Mending Wor
 - **Dungeon and Duels need many more words than a round**, so with a small word list they cannot honour the 24 hours strictly. They prefer eligible words, then fall back to the words coming due soonest, and never repeat a word within the last few questions (up to 8 in the Dungeon, 6 in Duels, fewer on short lists).
 - The Trial of the Archmage is teacher-set and ignores the cool-down; its answers still update the schedule.
 
+## Battle stage and sprites (v2.7)
+Every word room now shows the pupil's wizard on the left and a wraith on the right, using the pixel art in `public/img/` (`p_apprentice` to `p_archmage` for the five ranks, which change at Lv5, 10, 15 and 20; `w_simple`, `w_ice`, `w_fire`, `w_gloom`, `w_bone`, `w_cursed`, `w_ancient`, `w_void` for the wraiths). Right answer: the wizard lunges, a bolt flies, the wraith bursts and vanishes. Wrong answer: the wraith lunges and the wizard is hit. The Dungeon waits about a second for the spell to land, and its wraith type follows the floor (plain at the top, Void Wraith on Floor 10). The Curse-Breaking Tower and the Duel Arena use the same stage. To swap art, replace the PNGs (transparent background, any size; they are drawn 96 to 120 px high).
+
 ## Misspellings and error types (v2.3)
 `public/spelling.js` is shared by the browser and the Worker.
 - **Realistic misspellings:** modes that show a wrong spelling (Mending Workshop, the Tower, the Dungeon's fix challenges, Duel curses) no longer just swap two letters. The generator picks a kind of slip first (vowel pattern, double/single letter, sounds-right, missing letter, swapped letters), then a rule for it: ie/ei, ea/ee, silent letters (kn, wr, mb, gh, gu), ph/f, c/s, -tion, -ant/-ent, -able/-ible, -ful/-full, silent e, a lone vowel changed (seperate), and so on. Edit `RULES` and `TW` in `spelling.js` to tune it.
