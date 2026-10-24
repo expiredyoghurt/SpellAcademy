@@ -29,7 +29,77 @@ temperature|The {w} today is 33 degrees.|tem-per-a-ture: "era" inside.
 thought|I {w} about it all night.|ough says "aw".
 weather|The {w} is sunny.|w + EAT + her.
 island|Sentosa is an {w}.|Silent s.
-tomorrow|We will visit the zoo {w}.|One m, two r's.`},
+tomorrow|We will visit the zoo {w}.|One m, two r's.
+mischievous|The {w} puppy hid my shoes again.|Mis-chie-vous: only three syllables.
+unfortunately|{w}, the match was cancelled.|un + fortunate + ly.
+weird|The {w} noise came from the attic.|Weird is weird: e before i.
+yacht|A white {w} sailed past Sentosa.|The "ch" is silent.
+enthusiasm|The class showed great {w} for the trip.|en-THU-si-asm.
+ignorance|{w} of the rules is no excuse.|ignore + ance.
+maintenance|Regular {w} keeps the lift safe.|main + ten + ance.
+miniature|She built a {w} model of the Merlion.|Mini + a + ture.
+noticeable|The dent was {w} from far away.|Keep the e from notice.
+paragraph|Start a new {w} for each idea.|para + graph.
+particular|Is there a {w} book you want?|Par-TIC-u-lar.
+reference|Use the atlas for {w}.|Refer + ence.
+relevant|Keep only the {w} facts in your answer.|rel-e-vant: no a.
+secretary|The club {w} wrote the minutes.|Secret is hidden in secret-ary.
+signature|Please add your {w} at the bottom.|Sign + a + ture.
+suspicious|The guard noticed a {w} bag.|Sus-pi-cious.
+thorough|The cleaners did a {w} job.|Thor-ough: -ough at the end.
+tragedy|The play was a {w}.|Tra-ge-dy.
+vacuum|Use the {w} to clean the carpet.|One c, two u's.
+whether|Check {w} it will rain today.|Not weather: wh-ETH-er.
+wilderness|They camped in the {w}.|wilder + ness: double n.
+humidity|The {w} in Singapore is high all year.|hu-mid-ity.
+monsoon|The northeast {w} brings heavy rain.|Mon-soon: two o's in a row.
+hawker|We ate lunch at the {w} centre.|hawk + er.
+pasture|The cows grazed in the {w}.|Past + ure.
+accommodate|The hotel can {w} all twenty pupils in one block.|Two c's and two m's: ac-com-mo-date.
+definitely|I will {w} finish my homework before dinner.|Find "finite" inside de-finite-ly. No "a".
+occasion|Hari Raya is a happy {w} for many families.|Two c's, one s.
+rhythm|The drummer kept a steady {w}.|Rhythm Helps Your Two Hips Move.
+calendar|Circle the date of the test on the {w}.|End with -ar, not -er.
+conscience|My {w} told me to return the lost wallet.|con-SCI-ence: science hides inside.
+desperate|The lost hiker made a {w} call for help.|Des-PER-ate: it has "per" in the middle.
+dictionary|Look up the meaning in the {w}.|Ends in -ary, like "library".
+exaggerate|Do not {w} when you tell the story.|Two g's: ex-AGG-er-ate.
+foreign|She speaks a {w} language at home.|The e comes before the i, but it sounds like "in".
+height|The {w} of the tower is fifty metres.|Eight is hiding in h-EIGHT.
+independent|By Primary 6, many pupils travel to school as {w} learners.|Ends in -ent, not -ant.
+lightning|We saw a flash of {w} before the thunder.|No e: light-ning.
+occurred|The accident {w} at the junction.|Double the r before -ed: occur-r-ed.
+parallel|The two lines are {w} to each other.|Parallel has "all" and then "el".
+pronunciation|Practise your {w} by reading aloud.|Pro-NUN-ciation: no "ounce" in it.
+schedule|Check the bus {w} before you leave.|S-c-h at the start, like "school".
+sincerely|He thanked the teacher {w}.|Sin-cere-ly: keep the e from "sincere".
+address|Write your home {w} on the envelope.|Two d's and two s's.
+argument|The two friends had an {w} over the game.|Argue loses its e: argu-ment.
+awkward|It felt {w} to speak in front of everyone.|aw-k-ward: the w is in the middle too.
+bargain|I found a {w} at the pasar malam.|bar-GAIN.
+bicycle|My brother rides his {w} to the park.|bi + cycle: the c-y-c-l-e.
+business|The family {w} sells kueh.|Busy-ness with an i missing in the sound.
+committee|The class {w} planned the party.|Double m, double t, double e.
+convenient|The MRT station is {w} for us.|Con-VEN-i-ent.
+curiosity|{w} led the child to open the box.|Curious becomes curi-OS-ity.
+decision|It was a hard {w} to make.|Ends in -sion.
+discipline|Good {w} helps a team improve.|dis-ci-pline: the sc is in the middle.
+equipment|Bring your sports {w} to school.|equip + ment.
+especially|I love fruit, {w} mangoes.|Starts with es-.
+experience|Cycling at East Coast was a fun {w}.|Ex-PER-i-ence.
+pharmacy|The {w} is next to the clinic.|Ph says f: phar-ma-cy.
+column|Add the numbers in the first {w}.|The n is silent.
+athlete|The {w} trained every morning at the stadium.|Ath-lete: only three syllables.
+vehicle|A bus is a large {w}.|The h is silent: ve-hi-cle.
+muscle|He pulled a {w} in his leg.|The c is silent.
+doubt|There is no {w} that she will win.|The b is silent.
+honest|An {w} person tells the truth.|The h is silent.
+rhyme|Can you think of a word to {w} with "sing"?|Starts with rh.
+sergeant|The {w} gave the order to march.|Ser-geant: it sounds like "sar-jent".
+queue|We stood in a long {w} for chendol.|q + ueue: four letters follow the q.
+medicine|Take the {w} after your meal.|Med-i-cine: only three syllables.
+souvenir|I bought a {w} from Chinatown.|sou-ve-nir: ends in -nir.
+Wednesday|My music lesson is on {w}.|Wed-nes-day: say the d.`},
 p1:{n:'Primary 1',w:`cat|The {w} sat on the mat.|c-a-t: say each sound as you write it.
 dog|My {w} likes to run.|d-o-g: it starts with d, like "dad".
 sun|The {w} is bright today.|s-u-n: it rhymes with fun.

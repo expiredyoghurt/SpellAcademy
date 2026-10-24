@@ -10,5 +10,11 @@ create table if not exists badges(student_id integer,badge text,ts integer defau
 create index if not exists a_st on attempts(student_id,ts);
 create table if not exists duel_wins(id integer primary key autoincrement,student_id integer,room text,ts integer default (unixepoch()));
 create index if not exists dw_s on duel_wins(student_id);
-create table if not exists word_state(student_id integer,word text,box integer default 0,due integer default 0,lapses integer default 0,n integer default 0,upd integer default 0,primary key(student_id,word));
+create table if not exists word_state(student_id integer,word text,box integer default 0,due integer default 0,lapses integer default 0,n integer default 0,upd integer default 0,nxt integer default 0,lastok integer default 1,primary key(student_id,word));
 create index if not exists ws_due on word_state(student_id,due);
+create table if not exists trials(id integer primary key autoincrement,code text,owner integer,title text,words text,format text default 'hear',opens integer,closes integer,reveal text default 'finish',base integer,ts integer default (unixepoch()));
+create index if not exists tr_c on trials(code);
+create table if not exists trial_runs(id integer primary key autoincrement,trial_id integer,student_id integer,cur text,i integer default 0,score integer default 0,n integer default 0,status text default 'active',started integer default (unixepoch()),finished integer);
+create unique index if not exists trr_u on trial_runs(trial_id,student_id);
+create index if not exists trr_s on trial_runs(student_id);
+create table if not exists trial_answers(run_id integer,idx integer,word text,kind text,ans text,ok integer,ms integer,etype text,primary key(run_id,idx));

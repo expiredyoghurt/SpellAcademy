@@ -26,14 +26,29 @@ async function bankForD(D,code){const r=await D.prepare('select list from class_
 const clean=x=>String(x||'').toLowerCase().replace(/[^a-z' -]/g,'').slice(0,40)||null; // wrong spellings kept for teacher analytics
 
 // ---- Review queue shared by the word rooms and the Word Forge ----
-// Due items first (most overdue first), then new ones, then ones not yet due. When there is a backlog a third of the round is kept for new items.
-// sm maps an item's key to its due day; hit(item) optionally floats items up (used to target a pupil's recurring kind of slip).
-function queue(items,key,sm,today,n,hit){const due=[],fresh=[],ahead=[];
- for(const o of items){const d=sm.get(key(o)),h=hit?hit(o):false;if(d===undefined)fresh.push([o,(h?0:1)+Math.random()*.9]);else if(d<=today)due.push([o,d-(h?.5:0)+Math.random()*.4]);else ahead.push([o,d+Math.random()*.4])}
- const by=l=>l.sort((x,y)=>x[1]-y[1]).map(x=>x[0]),D1=by(due),F1=by(fresh),A1=by(ahead),nn=Math.min(F1.length,D1.length>=n?Math.floor(n/3):n-D1.length),dd=Math.min(D1.length,n-nn);
- const out=[...D1.slice(0,dd).map(o=>({o,r:'due'})),...F1.slice(0,nn).map(o=>({o,r:'new'}))];
- for(const[l,r]of[[D1.slice(dd),'due'],[F1.slice(nn),'new'],[A1,'ahead']])for(const o of l){if(out.length>=n)break;out.push({o,r})}
+// Every word appears at most once per round. A word is only eligible when its cool-down is over (sm.get(key).nxt <= now):
+//   right first time: not again for 24 hours or more (longer as the word is mastered); missed: back after RETRY_S seconds, not within the same round.
+// Order: words missed in the last 5 minutes (so a miss comes back soon, in any room), then words that are due (most overdue first), then new words.
+// Nothing that is still cooling down is ever used to pad a round, so a round can be short or empty ("all caught up").
+// sm maps an item's key to its word_state row; hit(item) optionally floats items up (used to target a pupil's recurring kind of slip).
+function queue(items,key,sm,now,n,hit){const retry=[],due=[],fresh=[];
+ for(const o of items){const r=sm.get(key(o)),h=hit?hit(o):false;
+  if(!r)fresh.push([o,(h?0:1)+Math.random()*.9]);else if(r.nxt>now)continue;else if(r.lastok===0&&now-r.upd<=RETRY_WIN)retry.push([o,r.upd]);else due.push([o,r.nxt-(h?43200:0)+Math.random()*3600])}
+ const by=l=>l.sort((x,y)=>x[1]-y[1]).map(x=>x[0]),R1=by(retry).slice(0,n),D1=by(due),F1=by(fresh),rem=n-R1.length,nn=Math.min(F1.length,D1.length>=rem?Math.floor(rem/3):rem-D1.length),dd=Math.min(D1.length,rem-nn);
+ const out=[...R1.map(o=>({o,r:'retry'})),...D1.slice(0,dd).map(o=>({o,r:'due'})),...F1.slice(0,nn).map(o=>({o,r:'new'}))];
+ for(const[l,r]of[[D1.slice(dd),'due'],[F1.slice(nn),'new']])for(const o of l){if(out.length>=n)break;out.push({o,r})}
  return out.sort(()=>Math.random()-.5)}
+// One-at-a-time picker for the Dungeon and Duels (they need far more words than a round): same rules, but when every word is cooling down it falls back to the
+// words coming due soonest rather than running out. rc = words used most recently in this run or duel, never repeated straight away.
+const tail=(a,n)=>n>0?a.slice(-n):[];
+function pickWords(bank,nx,now,rc,k){const rs=new Set(rc||[]),out=[],okw=w=>!rs.has(w.w)&&!out.includes(w),shuf=l=>l.sort(()=>Math.random()-.5),row=w=>nx.get(w.w);
+ const retry=bank.filter(w=>{const r=row(w);return r&&r.lastok===0&&now-r.upd<=RETRY_WIN&&r.nxt<=now}),elig=bank.filter(w=>{const r=row(w);return !r||r.nxt<=now}),soon=[...bank].sort((a,b)=>((row(a)||{}).nxt||0)-((row(b)||{}).nxt||0));
+ while(out.length<k){let w;const r1=shuf(retry.filter(okw));if(r1.length&&Math.random()<.6)w=r1[0];
+  if(!w){const e=shuf(elig.filter(okw));if(e.length)w=e[0]}
+  if(!w){const f=soon.filter(okw).slice(0,5);if(f.length)w=f[Math.floor(Math.random()*f.length)]}
+  if(!w)break;out.push(w)}
+ return out}
+const stateMap=async(D,id)=>new Map((await D.prepare('select word,nxt,upd,lastok from word_state where student_id=?').bind(id).all()).results.map(x=>[x.word,x]));
 // Which Word Forge items a class gets: a teacher setting (p3 to p6, or all), or by default the highest level among the class's ticked word lists.
 async function forgePool(D,code){const set=await classSettings(D,code),v=set.forge||'auto';let mx;
  if(/^p[3-6]$/.test(v))mx=+v[1];else if(v==='all')mx=6;else{const ids=(await D.prepare('select list from class_lists where code=?').bind(code).all()).results.map(x=>x.list).filter(x=>/^p[1-6]$/.test(x)).map(x=>+x[1]);mx=ids.length?Math.max(...ids):6}
@@ -43,28 +58,43 @@ const forgeFallback=w=>{const f=forgeBy.get(w);return f?{s:f.s,h:RULES[f.rule].n
 // Accuracy by Word Forge rule, from attempts rows {word,n,k}
 const forgeStats=rows=>{const m={};for(const x of rows){const f=forgeBy.get(x.word);if(!f)continue;const o=m[f.rule]=m[f.rule]||{rule:f.rule,name:RULES[f.rule].n,att:0,k:0};o.att+=x.n;o.k+=x.k}return Object.values(m).sort((a,b)=>a.k/a.att-b.k/b.att)};
 
+// ---- Trials of the Archmage (v2.5): teacher-scheduled word sets, judged on the server, no hints and no second tries ----
+const TRIAL_XP=3,TRIAL_DONE_XP=25,TRIAL_MIN=5,TRIAL_MAX=40; // XP is deliberately small: a Trial measures, it is not a place to farm
+const trialPhase=(t,now)=>now<t.opens?'upcoming':now<t.closes?'open':'closed';
+const trialPub=it=>it.k==='hear'?{k:'hear',w:it.w,sn:it.s?it.s.replace('{w}',it.w):it.w}:{k:'fix',s:it.s||'{w}',sh:it.sh}; // the word is sent only for audio ("hear"); a "fix" item never carries the answer
+function parseTrialWords(list,lookup){const out=new Map();
+ for(const raw of Array.isArray(list)?list:[]){let w,s,h;if(typeof raw==='string')[w,s,h]=raw.split('|');else if(raw&&typeof raw==='object'){w=raw.w;s=raw.s;h=raw.h}
+  w=String(w||'').trim().toLowerCase();if(!/^[a-z][a-z'-]{1,29}$/.test(w)||out.has(w))continue;
+  s=String(s||'').trim().slice(0,160);if(s&&!s.includes('{w}'))s='';h=String(h||'').trim().slice(0,160);
+  const k=lookup&&lookup.get(w);if(!s&&k){s=k.s||'';h=h||k.h||''}
+  out.set(w,{w,s,h})}
+ return[...out.values()]}
+const trialReview=(items,rows)=>rows.map(x=>({w:x.word,a:x.ok?x.word:x.ans||'',ok:!!x.ok,k:x.kind,s:(items[x.idx]||{}).s||''}));
+
 // ---- Progress: daily streak, mastery and badges (all derived from the attempts table) ----
 const GOAL=5,SGT=28800; // daily goal = 5 answers; days are counted in Singapore time
 const dayNo=ts=>Math.floor((ts+SGT)/86400),wkNo=d=>Math.floor((d-4)/7); // weeks start on Monday
-// ---- Spaced review (v2.3): one Leitner box per pupil per word ----
-// Box 0 = new or just missed. A word moves up one box only when it is answered right FIRST TIME on a day it is due, so repeating a word within one
-// sitting cannot "master" it. Days until the word is due again, by box:
-const BOX_GAP=[0,1,3,7,14,30],MASTER_BOX=3; // box 3 = Mastered = right first time on 3 different days, with growing gaps (1 day, then 3 days)
-function nextState(row,ok,tries,today){let box=row?row.box:0,due=row?row.due:0,lapses=row?row.lapses:0;
- if(ok&&tries==1){if(due<=today){box=Math.min(box+1,5);due=today+BOX_GAP[box]}} // right first time: only counts when the word was due
- else if(ok)due=today+1;                                                          // right but needed hints: no promotion, see it again tomorrow
- else{lapses++;box=Math.max(0,box-2);due=box?today+1:today}                       // missed: slide back two boxes
- return{box,due,lapses}}
+// ---- Spaced review: one Leitner box per pupil per word, timed to the second (v2.6) ----
+// Box 0 = new or just missed. A word moves up one box only when it is answered right FIRST TIME after its cool-down has ended, and never straight after a miss
+// (the next right answer after a miss only re-learns it and starts a fresh 24 hours). So a word can only be mastered by being right on 3 different days.
+const DAY=86400,RETRY_S=20,RETRY_WIN=300; // missed words come back after 20 seconds (never in the same round) and count as "recent misses" for 5 minutes
+const BOX_GAP=[0,1,3,7,14,30],MASTER_BOX=3; // days of cool-down by box; box 3 = Mastered = right first time on 3 different days, with growing gaps (1 day, then 3 days)
+function nextState(row,ok,tries,now){let box=row?row.box:0,nxt=row?(row.nxt||row.due*DAY-SGT):0,lapses=row?row.lapses:0;const lastok=row&&row.lastok===0?0:1;
+ if(ok&&tries==1){if(!lastok)nxt=now+DAY;else if(nxt<=now){box=Math.min(box+1,5);nxt=now+BOX_GAP[box]*DAY}} // right first time: promoted only when due and not just after a miss
+ else if(ok)nxt=now+DAY;                                                                                      // right but needed hints: no promotion, rest for 24 hours
+ else{lapses++;box=Math.max(0,box-2);nxt=now+RETRY_S}                                                         // missed: slide back two boxes, return soon
+ return{box,nxt,due:dayNo(nxt),lapses,lastok:ok?1:0}}
 // Existing pupils have attempts but no word_state yet: replay their history once (oldest first), the first time anything needs it.
 async function ensureState(D,id){
  if(await D.prepare('select 1 x from word_state where student_id=? limit 1').bind(id).first())return;
  const h=(await D.prepare("select word,ok,tries,ts from attempts where student_id=? and mode!='spot1' order by id").bind(id).all()).results;if(!h.length)return;
- const m=new Map();for(const x of h){const w=String(x.word).toLowerCase(),o=m.get(w),s=nextState(o,x.ok==1,x.tries|0,dayNo(x.ts));m.set(w,{...s,n:(o?o.n:0)+1,upd:x.ts})}
- const st=D.prepare('insert or replace into word_state(student_id,word,box,due,lapses,n,upd) values(?,?,?,?,?,?,?)'),rows=[...m].map(([w,s])=>st.bind(id,w,s.box,s.due,s.lapses,s.n,s.upd));
+ const m=new Map();for(const x of h){const w=String(x.word).toLowerCase(),o=m.get(w),s=nextState(o,x.ok==1,x.tries|0,x.ts);m.set(w,{...s,n:(o?o.n:0)+1,upd:x.ts})}
+ const st=D.prepare('insert or replace into word_state(student_id,word,box,due,nxt,lapses,n,upd,lastok) values(?,?,?,?,?,?,?,?,?)'),rows=[...m].map(([w,s])=>st.bind(id,w,s.box,s.due,s.nxt,s.lapses,s.n,s.upd,s.lastok));
  for(let i=0;i<rows.length;i+=50)await D.batch(rows.slice(i,i+50))}
-// The statement that records one answer in word_state (add it to the same batch as the attempts insert). Call ensureState first.
-async function stateStmt(D,id,word,ok,tries){const w=String(word).toLowerCase().slice(0,60),now=Math.floor(Date.now()/1000),row=await D.prepare('select box,due,lapses,n from word_state where student_id=? and word=?').bind(id,w).first(),s=nextState(row,ok,tries,dayNo(now));
- return D.prepare('insert or replace into word_state(student_id,word,box,due,lapses,n,upd) values(?,?,?,?,?,?,?)').bind(id,w,s.box,s.due,s.lapses,(row?row.n:0)+1,now)}
+// Records one answer in word_state. Returns {stmt, st}: add stmt to the same batch as the attempts insert (call ensureState first); st is the new state.
+async function stateCalc(D,id,word,ok,tries){const w=String(word).toLowerCase().slice(0,60),now=Math.floor(Date.now()/1000),row=await D.prepare('select box,due,nxt,lapses,n,lastok from word_state where student_id=? and word=?').bind(id,w).first(),st=nextState(row,ok,tries,now);
+ return{st:{...st,upd:now},stmt:D.prepare('insert or replace into word_state(student_id,word,box,due,nxt,lapses,n,upd,lastok) values(?,?,?,?,?,?,?,?,?)').bind(id,w,st.box,st.due,st.nxt,st.lapses,(row?row.n:0)+1,now,st.lastok)}}
+const stateStmt=async(D,id,word,ok,tries)=>(await stateCalc(D,id,word,ok,tries)).stmt;
 // Wrong-answer analytics. etype is stored from v2.3; older rows are classified here from the wrong spelling itself.
 const ETYPES=['vowel','doubling','phonetic','omission','insertion','transposition','other'];
 const errMix=rows=>{const m={};let tot=0;for(const x of rows){const t=x.et||classify(x.word,x.ans);if(t){m[t]=(m[t]||0)+x.c;tot+=x.c}}return{tot,types:ETYPES.filter(t=>m[t]).map(t=>({t,c:m[t],pct:Math.round(100*m[t]/tot)})).sort((a,b)=>b.c-a.c)}};
@@ -91,10 +121,11 @@ async function progress(D,st){const id=st.id,now=Math.floor(Date.now()/1000),tod
   D.prepare("select 1 x from runs where student_id=? and status='won' limit 1").bind(id),
   D.prepare('select badge,ts from badges where student_id=?').bind(id),
   D.prepare('select count(*) n from duel_wins where student_id=?').bind(id),
-  D.prepare("select count(*) n from attempts where student_id=? and mode='f' and ok=1").bind(id)]);
- const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n;
+  D.prepare("select count(*) n from attempts where student_id=? and mode='f' and ok=1").bind(id),
+  D.prepare("select count(*) n,coalesce(max(case when n>=5 then score*1.0/n end),0) best from trial_runs where student_id=? and status='done'").bind(id)]);
+ const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n,tr=r[9].results[0];
  const s=streakOf(days,today),k=tot.k,l=lvl(st.xp);
- const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50};
+ const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50,trial_done:tr.n>=1,trial_ace:tr.best>=.9};
  const owned=new Set(have.map(x=>x.badge)),fresh=Object.keys(earned).filter(b=>earned[b]&&!owned.has(b));
  if(fresh.length)await D.batch(fresh.map(b=>D.prepare('insert or ignore into badges(student_id,badge) values(?,?)').bind(id,b)));
  const t=days.find(x=>x.d==today);
@@ -114,8 +145,9 @@ const T=a&&a.r==='t',St=a&&a.r==='s';
 const cs=c=>classSettings(D,c);
 const lv6=a=>[...new Set(Array.isArray(a)?a:[])].filter(x=>/^p[1-6]$/.test(x));
 const bankFor=code=>bankForD(D,code);
-const mkch=async a=>{const bank=await bankFor(a.code),eb=await errBank(D,a.code),mw=(await D.prepare('select word from attempts where student_id=? and ok=0 group by word order by count(*) desc limit 10').bind(a.id).all()).results.map(x=>x.word),miss=bank.filter(w=>mw.includes(w.w)),arr=miss.length&&Math.random()<.4?miss:bank,w=arr[Math.floor(Math.random()*arr.length)],k=Math.random()<.5?'ear':'fix';
- return{cur:{k,w:w.w,s:w.s,h:w.h,t:Date.now(),n:0},pub:k=='ear'?{k,w:w.w,sn:w.s.replace('{w}',w.w)}:{k,s:w.s,sh:mis(w.w,eb.get(w.w))}}};
+const mkch=async(a,rc=[])=>{const bank=await bankFor(a.code),eb=await errBank(D,a.code),now=Math.floor(Date.now()/1000),cool=Math.min(8,Math.max(0,bank.length-4)), // the last few words are never repeated; due and missed words come first
+ w=pickWords(bank,await stateMap(D,a.id),now,tail(rc,cool),1)[0]||bank[Math.floor(Math.random()*bank.length)],k=Math.random()<.5?'ear':'fix';
+ return{cur:{k,w:w.w,s:w.s,h:w.h,t:Date.now(),n:0,rc:tail([...rc,w.w],cool)},pub:k=='ear'?{k,w:w.w,sn:w.s.replace('{w}',w.w)}:{k,s:w.s,sh:mis(w.w,eb.get(w.w))}}};
 const own=c=>D.prepare('select 1 from classes where code=? and teacher_id=?').bind((c||'').toUpperCase(),a.id).first();
 if(p==='/api/login'){const name=(b.name||'').trim().slice(0,30),code=(b.code||'').trim().toUpperCase();
  if(!name||!await D.prepare('select 1 from classes where code=?').bind(code).first())return J({error:'Unknown class code or name'},400);
@@ -150,7 +182,7 @@ if(p==='/api/admin/pending'||p==='/api/admin/review'||p==='/api/admin/dedupe'){i
 if(St&&p==='/api/me'){const m=await D.prepare('select xp from students where id=?').bind(a.id).first();return J({xp:m.xp,modes:ms(await cs(a.code),m.xp)})}
 if(St&&p==='/api/run/start'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!un(await cs(a.code),'4',x0.xp))return J({error:'locked'},403);
  await D.prepare("update runs set status='abandoned' where student_id=? and status='active'").bind(a.id).run();
- const ch=await mkch(a),r=await D.prepare('insert into runs(student_id,hearts,correct,peak,deaths,cur) values(?,?,0,0,0,?)').bind(a.id,START_HEARTS,JSON.stringify(ch.cur)).run();
+ await ensureState(D,a.id);const ch=await mkch(a),r=await D.prepare('insert into runs(student_id,hearts,correct,peak,deaths,cur) values(?,?,0,0,0,?)').bind(a.id,START_HEARTS,JSON.stringify(ch.cur)).run();
  return J({run:r.meta.last_row_id,hearts:START_HEARTS,correct:0,deaths:0,ch:ch.pub})}
 if(St&&p==='/api/run/ready'){await D.prepare("update runs set cur=json_set(cur,'$.t',?) where id=? and student_id=? and status='active'").bind(Date.now(),b.run|0,a.id).run();return J({ok:1})} // restarts the answer timer after a story screen, so reading never costs the speed bonus
 if(St&&p==='/api/run/answer'){const r=await D.prepare("select * from runs where id=? and student_id=? and status='active'").bind(b.run|0,a.id).first();if(!r)return J({error:'No active run'},400);
@@ -164,28 +196,56 @@ if(St&&p==='/api/run/answer'){const r=await D.prepare("select * from runs where 
  const cp=ok&&!end&&correct%FLOOR==0?{n:correct,fresh:correct>old}:null; // checkpoint reached (fresh = first time this run, so the story is only told once)
  if(end==='win')g+=100;
  const room=Math.max(0,RUN_XP_CAP-(cur.x|0)),capped=g>room;g=Math.min(g,room);cur.x=(cur.x|0)+g;
- const ch=end?null:await mkch(a);if(ch){ch.cur.hl=cur.hl|0;ch.cur.e=cur.e|0;ch.cur.x=cur.x|0}
+ const ch=end?null:await mkch(a,cur.rc||[]);if(ch){ch.cur.hl=cur.hl|0;ch.cur.e=cur.e|0;ch.cur.x=cur.x|0}
  await ensureState(D,a.id);const ans=ok?null:clean(b.a),ws=await stateStmt(D,a.id,cur.w,ok,cur.n);
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,'dun-'+cur.k,cur.w,ok?1:0,cur.n,t,g,ans,ans?classify(cur.w,ans):null),ws,D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),D.prepare('update runs set hearts=?,correct=?,cur=?,status=?,peak=?,deaths=? where id=?').bind(hearts,correct,ch?JSON.stringify(ch.cur):r.cur,end?(end=='win'?'won':'dead'):'active',peak,deaths,r.id)]);
  const s=await D.prepare('select xp from students where id=?').bind(a.id).first();
  const pg=await progress(D,{id:a.id,xp:s.xp});return J({res:ok?'ok':'fail',word:ok?undefined:cur.w,tip:cur.h,gain:g,capped,event,hearts,correct,deaths,peak,back,cp,end,ch:ch&&ch.pub,xp:s.xp,modes:ms(await cs(a.code),s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0})}
 if(St&&p==='/api/lists'){const eb=await errBank(D,a.code);return J((await bankFor(a.code)).map(w=>({...w,x:eb.get(w.w)||[]})))}
 // The review queue: words due for review first (most overdue first), then new words. Up to a third of a round is kept for new words when there is a backlog.
-if(St&&p==='/api/due'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),today=dayNo(Math.floor(Date.now()/1000));await ensureState(D,a.id);
- const [bank,eb,wk,st]=await Promise.all([bankFor(a.code),errBank(D,a.code),weakTypes(D,a.id),D.prepare('select word,due from word_state where student_id=?').bind(a.id).all()]),sm=new Map(st.results.map(x=>[x.word,x.due])),W=new Set(wk);
+if(St&&p==='/api/due'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),now=Math.floor(Date.now()/1000);await ensureState(D,a.id);
+ const [bank,eb,wk,sm]=await Promise.all([bankFor(a.code),errBank(D,a.code),weakTypes(D,a.id),stateMap(D,a.id)]),W=new Set(wk);
  const hit=w=>W.size&&[...Spelling.types(w.w)].some(t=>W.has(t));
- return J(queue(bank.map(w=>({...w,x:eb.get(w.w)||[]})),w=>w.w,sm,today,n,hit).map(x=>({...x.o,r:x.r})))}
+ return J(queue(bank.map(w=>({...w,x:eb.get(w.w)||[]})),w=>w.w,sm,now,n,hit).map(x=>({...x.o,r:x.r})))}
 // Word Forge: a round of root + ending items, chosen by the same review queue (due first, then new).
-if(St&&p==='/api/forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),today=dayNo(Math.floor(Date.now()/1000));await ensureState(D,a.id);
- const [pool,st]=await Promise.all([forgePool(D,a.code),D.prepare('select word,due from word_state where student_id=?').bind(a.id).all()]);
- return J({rules:forgeRules(),items:queue(pool,x=>x.w,new Map(st.results.map(x=>[x.word,x.due])),today,n).map(x=>pubForge(x.o))})}
+if(St&&p==='/api/forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6)),now=Math.floor(Date.now()/1000);await ensureState(D,a.id);
+ const [pool,sm]=await Promise.all([forgePool(D,a.code),stateMap(D,a.id)]);
+ return J({rules:forgeRules(),items:queue(pool,x=>x.w,sm,now,n).map(x=>pubForge(x.o))})}
+// ---- Trials: pupil side ----
+if(St&&p==='/api/trials'){const now=Math.floor(Date.now()/1000),[ts,rs]=(await D.batch([D.prepare('select id,title,format,opens,closes,reveal,json_array_length(words) n from trials where code=? order by closes desc limit 30').bind(a.code),D.prepare('select trial_id,status,score,n,finished from trial_runs where student_id=?').bind(a.id)])).map(x=>x.results),m=new Map(rs.map(x=>[x.trial_id,x]));
+ return J(ts.map(t=>{const r=m.get(t.id);return{...t,phase:trialPhase(t,now),mine:r?{status:r.status,score:r.score,n:r.n,finished:r.finished}:null}}))}
+if(St&&p==='/api/trial/start'){const t=await D.prepare('select * from trials where id=? and code=?').bind(b.id|0,a.code).first();if(!t)return J({error:'Trial not found'},404);
+ const now=Math.floor(Date.now()/1000),getRun=()=>D.prepare('select * from trial_runs where trial_id=? and student_id=?').bind(t.id,a.id).first();let r=await getRun();
+ if(r&&r.status==='done')return J({done:true,score:r.score,n:r.n});
+ if(!r){const ph=trialPhase(t,now);if(ph!=='open')return J({error:ph==='upcoming'?'This Trial has not opened yet.':'This Trial has closed.'},400);
+  const eb=await errBank(D,a.code),items=[...JSON.parse(t.words)].sort(()=>Math.random()-.5).map((x,i)=>{const k=t.format==='mixed'?(i%2?'fix':'hear'):t.format;return k==='fix'?{...x,k,sh:mis(x.w,eb.get(x.w))}:{...x,k}});
+  try{await D.prepare('insert into trial_runs(trial_id,student_id,cur,n) values(?,?,?,?)').bind(t.id,a.id,JSON.stringify(items),items.length).run()}catch{}
+  r=await getRun();if(!r)return J({error:'Could not start the Trial. Please try again.'},500);if(r.status==='done')return J({done:true,score:r.score,n:r.n})}
+ const items=JSON.parse(r.cur);return J({run:r.id,i:r.i|0,n:r.n,title:t.title,q:trialPub(items[r.i|0])})}
+if(St&&p==='/api/trial/answer'){const r=await D.prepare("select * from trial_runs where id=? and student_id=? and status='active'").bind(b.run|0,a.id).first();if(!r)return J({error:'No Trial in progress'},400);
+ const items=JSON.parse(r.cur),i=r.i|0;if((b.i|0)!==i)return J({sync:true,i,n:r.n,q:trialPub(items[i])}); // out of step (double tap, reload): hand back the current question
+ const it=items[i],ok=String(b.a||'').trim().toLowerCase()===it.w,ans=ok?null:clean(b.a),et=ans?classify(it.w,ans):null,last=i+1>=r.n,gain=(ok?TRIAL_XP:0)+(last?TRIAL_DONE_XP:0),score=r.score+(ok?1:0),now=Math.floor(Date.now()/1000);
+ await ensureState(D,a.id);
+ try{await D.batch([D.prepare('insert into trial_answers(run_id,idx,word,kind,ans,ok,ms,etype) values(?,?,?,?,?,?,?,?)').bind(r.id,i,it.w,it.k,ans,ok?1:0,0,et),
+  D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,'trial',it.w,ok?1:0,1,0,gain,ans,et),
+  await stateStmt(D,a.id,it.w,ok,1),D.prepare('update students set xp=xp+? where id=?').bind(gain,a.id),
+  D.prepare('update trial_runs set i=?,score=?,status=?,finished=? where id=?').bind(i+1,score,last?'done':'active',last?now:null,r.id)])}
+ catch{const r2=await D.prepare('select * from trial_runs where id=?').bind(r.id).first();return J({sync:true,i:r2.i|0,n:r2.n,q:r2.status==='done'?null:trialPub(items[r2.i|0])})}
+ const x=await D.prepare('select xp from students where id=?').bind(a.id).first();
+ if(!last)return J({i:i+1,n:r.n,xp:x.xp,q:trialPub(items[i+1])});
+ const pg=await progress(D,{id:a.id,xp:x.xp}),t=await D.prepare('select reveal,closes from trials where id=?').bind(r.trial_id).first(),show=t&&(t.reveal==='finish'||now>=t.closes),
+  rows=show?(await D.prepare('select idx,word,kind,ans,ok from trial_answers where run_id=? order by idx').bind(r.id).all()).results:null;
+ return J({done:true,score,n:r.n,gain,xp:x.xp,badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0,modes:ms(await cs(a.code),x.xp),review:rows&&trialReview(items,rows)})}
+if(St&&p==='/api/trial/result'){const id=+u.searchParams.get('id'),t=await D.prepare('select * from trials where id=? and code=?').bind(id,a.code).first(),r=t&&await D.prepare("select * from trial_runs where trial_id=? and student_id=? and status='done'").bind(id,a.id).first();if(!r)return J({error:'No result yet'},404);
+ const show=t.reveal==='finish'||Math.floor(Date.now()/1000)>=t.closes,rows=show?(await D.prepare('select idx,word,kind,ans,ok from trial_answers where run_id=? order by idx').bind(r.id).all()).results:null;
+ return J({title:t.title,score:r.score,n:r.n,closes:t.closes,review:rows&&trialReview(JSON.parse(r.cur),rows)})}
 if(St&&p==='/api/attempt'){const x0=await D.prepare('select xp from students where id=?').bind(a.id).first(),set=await cs(a.code);if(!un(set,MM[b.mode],x0.xp))return J({error:'locked'},403);const g=gain(b.ok,b.tries,b.ms,b.focus),ans=b.ok?null:clean(b.ans),spot=b.mode==='spot1'; // spot1 only tests recognising a wrong spelling, so it never touches the review schedule
  if(!spot)await ensureState(D,a.id);
  await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,String(b.mode),String(b.word),b.ok?1:0,b.tries|0,b.ms|0,g,ans,ans?classify(String(b.word),ans):null),D.prepare('update students set xp=xp+? where id=?').bind(g,a.id),...(spot?[]:[await stateStmt(D,a.id,b.word,!!b.ok,b.tries|0)])]);
  const s=await D.prepare('select xp from students where id=?').bind(a.id).first(),pg=b.mode==='spot1'?null:await progress(D,{id:a.id,xp:s.xp});
  return J({gain:g,xp:s.xp,level:lvl(s.xp),modes:ms(set,s.xp),badges:pg?pg.fresh:[],goal:pg&&pg.streak.today===GOAL?pg.streak.n:0})}
 if(St&&p==='/api/progress'){const m=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!m)return J({error:'Not found or not signed in'},404);const pg=await progress(D,{id:a.id,xp:m.xp});
- const bw=new Set((await bankFor(a.code)).map(x=>x.w)),dn=(await D.prepare('select word from word_state where student_id=? and due<=?').bind(a.id,dayNo(Math.floor(Date.now()/1000))).all()).results.filter(x=>bw.has(x.word)).length;
+ const bw=new Set((await bankFor(a.code)).map(x=>x.w)),dn=(await D.prepare('select word from word_state where student_id=? and nxt<=?').bind(a.id,Math.floor(Date.now()/1000)).all()).results.filter(x=>bw.has(x.word)).length;
  return J({xp:m.xp,streak:pg.streak,mastered:pg.mastered,due:dn,badges:pg.have,fresh:pg.fresh,modes:ms(await cs(a.code),m.xp)})}
 if(St&&p==='/api/spellbook'){await ensureState(D,a.id);const bank=new Map((await bankFor(a.code)).map(x=>[x.w,x])),today=dayNo(Math.floor(Date.now()/1000));
  const [rows,st]=(await D.batch([D.prepare("select word,count(*) n,sum(ok) k from attempts where student_id=? and mode!='spot1' group by word order by max(id) desc limit 500").bind(a.id),D.prepare('select word,box,due from word_state where student_id=?').bind(a.id)])).map(x=>x.results),sm=new Map(st.map(x=>[x.word,x])),met=new Set(st.map(x=>x.word));
@@ -204,6 +264,39 @@ if(T){
   const mine=(await D.prepare('select id from lists where owner=?').bind(a.id).all()).results.map(x=>'c'+x.id),ids=[...new Set(b.lists||[])].filter(i=>LISTS[i]||mine.includes(i));
   await D.batch([D.prepare('delete from class_lists where code=?').bind(c),...ids.map(i=>D.prepare('insert into class_lists(code,list) values(?,?)').bind(c,i))]);return J({ok:1,lists:ids})}
  if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';set.forge=/^(auto|all|p[3-6])$/.test(b.forge||'')?b.forge:'auto';await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
+ // ---- Trials: teacher side ----
+ const ownT=async id=>{const t=await D.prepare('select * from trials where id=?').bind(id|0).first();return t&&await own(t.code)?t:null};
+ if(p==='/api/teacher/bank'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);return J((await bankFor(c)).map(x=>({w:x.w,s:x.s,h:x.h})))}
+ if(p==='/api/teacher/trials'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);const now=Math.floor(Date.now()/1000);
+  const rows=(await D.prepare("select t.id,t.title,t.format,t.opens,t.closes,t.reveal,t.base,json_array_length(t.words) n,(select count(*) from trial_runs r where r.trial_id=t.id and r.status='done') done,(select count(*) from trial_runs r where r.trial_id=t.id and r.status='active') active,(select avg(r.score*1.0/r.n) from trial_runs r where r.trial_id=t.id and r.status='done') avg from trials t where t.code=? order by t.opens desc,t.id desc").bind(c).all()).results;
+  return J({now,pupils:(await D.prepare('select count(*) n from students where code=?').bind(c).first()).n,trials:rows.map(t=>({...t,phase:trialPhase(t,now)}))})}
+ if(p==='/api/teacher/trialnew'){const c=String(b.code||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
+  let src=b.words,base=null;if(b.from){const f=await ownT(b.from);if(!f)return J({error:'Trial not found'},404);src=JSON.parse(f.words);base=f.id}
+  const lk=new Map();for(const l of Object.values(PARSED))for(const x of l)lk.set(x.w,x);for(const x of await bankFor(c))lk.set(x.w,x);
+  const words=parseTrialWords(src,lk);if(words.length<TRIAL_MIN)return J({error:'A Trial needs at least '+TRIAL_MIN+' valid words (letters only, one per line).'},400);if(words.length>TRIAL_MAX)return J({error:'A Trial can have at most '+TRIAL_MAX+' words.'},400);
+  const now=Math.floor(Date.now()/1000),opens=Math.floor(+b.opens||now),closes=Math.floor(+b.closes||opens+7*86400);if(!(closes>opens))return J({error:'The closing time must be after the opening time.'},400);if(closes>now+400*86400)return J({error:'Choose a closing date within the next year.'},400);
+  const format=['hear','fix','mixed'].includes(b.format)?b.format:'hear',reveal=b.reveal==='close'?'close':'finish',title=String(b.title||'').trim().slice(0,60)||'Trial';
+  const r=await D.prepare('insert into trials(code,owner,title,words,format,opens,closes,reveal,base) values(?,?,?,?,?,?,?,?,?)').bind(c,a.id,title,JSON.stringify(words),format,opens,closes,reveal,base).run();return J({ok:1,id:r.meta.last_row_id,n:words.length})}
+ if(p==='/api/teacher/trialset'){const t=await ownT(b.id);if(!t)return J({error:'Trial not found'},404);const title=b.title!=null?String(b.title).trim().slice(0,60)||t.title:t.title,opens=b.opens!=null?Math.floor(+b.opens):t.opens,closes=b.closes!=null?Math.floor(+b.closes):t.closes,reveal=b.reveal==='close'?'close':b.reveal==='finish'?'finish':t.reveal;
+  if(!(opens>0&&closes>opens))return J({error:'The closing time must be after the opening time.'},400);await D.prepare('update trials set title=?,opens=?,closes=?,reveal=? where id=?').bind(title,opens,closes,reveal,t.id).run();return J({ok:1})}
+ if(p==='/api/teacher/trialdelete'){const t=await ownT(b.id);if(!t)return J({error:'Trial not found'},404);
+  await D.batch([D.prepare('delete from trial_answers where run_id in (select id from trial_runs where trial_id=?)').bind(t.id),D.prepare('delete from trial_runs where trial_id=?').bind(t.id),D.prepare('update trials set base=null where base=?').bind(t.id),D.prepare('delete from trials where id=?').bind(t.id)]);return J({ok:1})}
+ if(p==='/api/teacher/trialreset'){const t=await ownT(b.id);if(!t)return J({error:'Trial not found'},404);const s=await D.prepare('select id from students where id=? and code=?').bind(b.student|0,t.code).first();if(!s)return J({error:'Pupil not found'},404);
+  await D.batch([D.prepare('delete from trial_answers where run_id in (select id from trial_runs where trial_id=? and student_id=?)').bind(t.id,s.id),D.prepare('delete from trial_runs where trial_id=? and student_id=?').bind(t.id,s.id)]);return J({ok:1})}
+ if(p==='/api/teacher/trialresults'){const t=await ownT(u.searchParams.get('id'));if(!t)return J({error:'Trial not found'},404);const ws=JSON.parse(t.words),now=Math.floor(Date.now()/1000);
+  const [pu,ans]=(await D.batch([D.prepare("select s.id,s.name,r.status,r.score,r.n,r.started,r.finished from students s left join trial_runs r on r.student_id=s.id and r.trial_id=? where s.code=? order by s.name collate nocase").bind(t.id,t.code),
+   D.prepare("select r.student_id sid,a.idx,a.word,a.kind,a.ans,a.ok,a.etype from trial_answers a join trial_runs r on r.id=a.run_id where r.trial_id=? order by r.student_id,a.idx").bind(t.id)])).map(x=>x.results);
+  const byW=new Map(ws.map(x=>[x.w,{w:x.w,n:0,k:0,wrong:{}}]));for(const x of ans){const o=byW.get(x.word);if(!o)continue;o.n++;o.k+=x.ok;if(!x.ok&&x.ans)o.wrong[x.ans]=(o.wrong[x.ans]||0)+1}
+  const items=[...byW.values()].map(o=>({w:o.w,n:o.n,k:o.k,wrong:Object.entries(o.wrong).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([a2,c])=>({a:a2,c,et:classify(o.w,a2)}))})).sort((x,y)=>(x.n?x.k/x.n:2)-(y.n?y.k/y.n:2));
+  const pupils=pu.map(x=>({id:x.id,name:x.name,status:x.status||'none',score:x.score,n:x.n,started:x.started,finished:x.finished}));
+  // Before/after: if this Trial is a retest, compare each pupil on the words both Trials share
+  let cmp=null;if(t.base){const bt=await D.prepare('select id,title,words from trials where id=? and code=?').bind(t.base,t.code).first();if(bt){const common=new Set(JSON.parse(bt.words).map(x=>x.w).filter(w=>byW.has(w)));
+   if(common.size){const ba=(await D.prepare("select r.student_id sid,a.word,a.ok,r.finished fin from trial_answers a join trial_runs r on r.id=a.run_id where r.trial_id=? and r.status='done'").bind(bt.id).all()).results,doneNow=new Set(pupils.filter(x=>x.status==='done').map(x=>x.id));
+    const agg=rows=>{const m=new Map();for(const x of rows){if(!common.has(x.word))continue;const o=m.get(x.sid)||{k:0,n:0,fin:x.fin};o.k+=x.ok;o.n++;m.set(x.sid,o)}return m},pre=agg(ba),post=agg(ans.filter(x=>doneNow.has(x.sid))),both=pupils.filter(x=>pre.has(x.id)&&post.has(x.id));
+    const prac=both.length?(await D.batch(both.map(x=>D.prepare("select count(*) c from attempts where student_id=? and ts>? and ts<=? and mode not in ('trial','spot1')").bind(x.id,pre.get(x.id).fin||0,x.started||now)))).map(r=>r.results[0].c):[];
+    const rows=both.map((x,i)=>{const a0=pre.get(x.id),a1=post.get(x.id),p0=a0.k/a0.n,p1=a1.k/a1.n;return{id:x.id,name:x.name,pre:p0,post:p1,delta:p1-p0,practice:prac[i]}}),av=f=>rows.length?rows.reduce((s2,x)=>s2+x[f],0)/rows.length:null;
+    cmp={title:bt.title,common:common.size,rows,avgPre:av('pre'),avgPost:av('post'),avgPractice:rows.length?rows.reduce((s2,x)=>s2+x.practice,0)/rows.length:null}}}}
+  return J({trial:{id:t.id,title:t.title,format:t.format,opens:t.opens,closes:t.closes,reveal:t.reveal,base:t.base,n:ws.length,phase:trialPhase(t,now),words:ws.map(x=>x.w)},pupils,items,answers:ans.map(x=>({sid:x.sid,idx:x.idx,w:x.word,k:x.kind,a:x.ans,ok:x.ok,et:x.etype||(x.ans?classify(x.word,x.ans):null)})),errs:errMix(ans.filter(x=>!x.ok&&x.ans).map(x=>({word:x.word,ans:x.ans,et:x.etype,c:1}))),cmp})}
  if(p==='/api/teacher/students'){const c=(b.code||u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
   if(req.method==='POST'){const n=[...new Set((b.text||'').split('\n').map(x=>x.trim().slice(0,30)).filter(Boolean))].slice(0,200);if(!n.length)return J({added:0,total:0});
    const r=await D.batch(n.map(x=>D.prepare('insert or ignore into students(name,code) values(?,?)').bind(x,c)));return J({added:r.reduce((t,x)=>t+x.meta.changes,0),total:n.length})}
@@ -213,7 +306,7 @@ if(T){
  const pwords=t=>(t||'').split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(x=>/^[a-zA-Z'-]{3,}$/.test(x[0]||'')).map(x=>({w:x[0].toLowerCase(),s:(x[1]||'').includes('{w}')?x[1]:'Spell the word: {w}.',h:x[2]||'Sound it out slowly.'}));
   const ownP=id=>D.prepare('select s.id,s.name,s.code from students s join classes c on c.code=s.code where s.id=? and c.teacher_id=?').bind(+id,a.id).first();
   const ownL=id=>D.prepare('select * from lists where id=? and owner=?').bind(+String(id||'').slice(1),a.id).first();
-  const wipe=where=>['attempts','runs','badges','duel_wins'].map(t=>D.prepare('delete from '+t+' where student_id in (select id from students where '+where+')'));
+  const wipe=where=>[D.prepare('delete from trial_answers where run_id in (select id from trial_runs where student_id in (select id from students where '+where+'))'),...['attempts','runs','badges','duel_wins','word_state','trial_runs'].map(t=>D.prepare('delete from '+t+' where student_id in (select id from students where '+where+')'))];
   if(p==='/api/teacher/me'){const u=await D.prepare('select user from teachers where id=?').bind(a.id).first();return J({user:u&&u.user,classes:(await D.prepare('select count(*) n from classes where teacher_id=?').bind(a.id).first()).n,pupils:(await D.prepare('select count(*) n from students s join classes c on c.code=s.code where c.teacher_id=?').bind(a.id).first()).n})}
   if(p==='/api/teacher/password'){const t=await D.prepare('select * from teachers where id=?').bind(a.id).first(),np=String(b.new||'');if(!t||await hash(String(b.old||''),t.salt)!==t.hash)return J({error:'Your current password is not correct'},400);if(np.length<6)return J({error:'New password must be at least 6 characters'},400);if(np===String(b.old))return J({error:'Choose a password different from the current one'},400);
    const salt=crypto.randomUUID();await D.prepare('update teachers set salt=?,hash=? where id=?').bind(salt,await hash(np,salt),a.id).run();return J({ok:1})}
@@ -227,7 +320,7 @@ if(T){
   if(p==='/api/teacher/classdelete'){const c=(b.code||'').toUpperCase(),cl=await D.prepare('select name from classes where code=? and teacher_id=?').bind(c,a.id).first();if(!cl)return J({error:'Not your class'},403);
    if(String(b.confirm||'').trim().toLowerCase()!==String(cl.name||'').trim().toLowerCase())return J({error:'Type the class name to confirm'},400);
    const n=(await D.prepare('select count(*) n from students where code=?').bind(c).first()).n;
-   await D.batch([...wipe("code='"+c.replace(/[^A-Z0-9]/g,'')+"'"),D.prepare('delete from students where code=?').bind(c),D.prepare('delete from class_lists where code=?').bind(c),D.prepare('delete from classes where code=?').bind(c)]);return J({ok:1,pupils:n})}
+   await D.batch([...wipe("code='"+c.replace(/[^A-Z0-9]/g,'')+"'"),D.prepare('delete from students where code=?').bind(c),D.prepare('delete from class_lists where code=?').bind(c),D.prepare('delete from trials where code=?').bind(c),D.prepare('delete from classes where code=?').bind(c)]);return J({ok:1,pupils:n})}
   if(p==='/api/teacher/listget'){const l=await ownL(b.id);if(!l)return J({error:'Not found'},404);const ws=JSON.parse(l.words);
    return J({id:b.id,name:l.name,count:ws.length,text:ws.map(x=>[x.w,x.s,x.h].join('|')).join('\n'),shared:JSON.parse(l.shared||'[]')})}
   if(p==='/api/teacher/listedit'){const l=await ownL(b.id);if(!l)return J({error:'Not found'},404);const w0=pwords(b.text);if(!w0.length)return J({error:'No valid words found (3+ letters each)'},400);
@@ -262,9 +355,10 @@ if(T){
    D.prepare("select coalesce(max(max(correct,coalesce(peak,0))),0) best,count(*) runs from runs where student_id=?").bind(id),
    D.prepare("select count(*) n from badges where student_id=?").bind(id),
    D.prepare("select count(*) n from word_state where student_id=? and box>=?").bind(id,MASTER_BOX),
-   D.prepare("select word,count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode='f' group by word").bind(id)]);
+   D.prepare("select word,count(*) n,coalesce(sum(ok),0) k from attempts where student_id=? and mode='f' group by word").bind(id),
+   D.prepare("select t.title,r.score,r.n,r.finished from trial_runs r join trials t on t.id=r.trial_id where r.student_id=? and r.status='done' order by r.finished desc limit 10").bind(id)]);
   const rows=r[1].results,wr={};r[3].results.forEach(x=>(wr[x.word]=wr[x.word]||[]).push({a:x.ans,c:x.c,et:x.et||classify(x.word,x.ans)}));const t=r[0].results[0];
-  return J({id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:t.n,acc:t.n?t.k/t.n:null,last:t.last,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>(rows.find(x=>x.d==today-13+i)||{c:0}).c),weak:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)})),modes:r[4].results,dungeon:r[5].results[0],badges:r[6].results[0].n,mastered:r[7].results[0].n,errs:errMix(r[3].results),forge:forgeStats(r[8].results)})}
+  return J({id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:t.n,acc:t.n?t.k/t.n:null,last:t.last,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>(rows.find(x=>x.d==today-13+i)||{c:0}).c),weak:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)})),modes:r[4].results,dungeon:r[5].results[0],badges:r[6].results[0].n,mastered:r[7].results[0].n,errs:errMix(r[3].results),forge:forgeStats(r[8].results),trials:r[9].results})}
  if(p==='/api/analytics'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await D.prepare('select 1 from classes where code=? and teacher_id=?').bind(c,a.id).first())return J({error:'Not your class'},403);
   const st=await D.prepare('select s.name,s.xp,count(a.id) n,coalesce(sum(a.ok),0) ok,coalesce(avg(a.ms),0) ms from students s left join attempts a on a.student_id=s.id where s.code=? group by s.id').bind(c).all();
   const wd=await D.prepare('select a.word,count(*) n,sum(1-a.ok) miss from attempts a join students s on s.id=a.student_id where s.code=? group by a.word order by miss desc limit 10').bind(c).all();
@@ -288,13 +382,14 @@ async init(id,me){const D=this.env.DB;
  if(me.sid){if([...this.p.values()].some(x=>x!==me&&x.sid===me.sid&&x.seq<me.seq))return this.drop(id,{t:'dup'});
   const st=await D.prepare('select xp from students where id=?').bind(me.sid).first();if(!st)return this.drop(id,{t:'locked'});
   me.set=await classSettings(D,me.code);if(!un(me.set,'d',st.xp))return this.drop(id,{t:'locked'});
-  me.bank=await bankForD(D,me.code);me.eb=await errBank(D,me.code)}
+  me.bank=await bankForD(D,me.code);me.eb=await errBank(D,me.code);await ensureState(D,me.sid);me.nx=await stateMap(D,me.sid)}
  if(me.bank.length<3)me.bank=PARSED.default;
  me.in=true;this.send(me,{t:'you',n:me.name,xp:!!me.sid});this.deal(me);this.all({log:'🧙 '+me.name+' entered the arena.'})}
-deal(me){me.hand=[...me.bank].sort(()=>Math.random()-.5).slice(0,3);me.tries=[0,0,0];me.t0=Date.now();me.lock=false;this.send(me,{t:'hand',c:me.hand.map(x=>x.w)})}
+deal(me){const cool=Math.min(6,Math.max(0,me.bank.length-4));me.hand=pickWords(me.bank,me.nx||new Map(),Math.floor(Date.now()/1000),tail(me.rc||[],cool),3);if(me.hand.length<3)me.hand=[...me.bank].sort(()=>Math.random()-.5).slice(0,3);me.rc=tail([...(me.rc||[]),...me.hand.map(x=>x.w)],cool); // every word in a hand is different, and recent words are not dealt again straight away
+ me.tries=[0,0,0];me.t0=Date.now();me.lock=false;this.send(me,{t:'hand',c:me.hand.map(x=>x.w)})}
 async award(me,w,ok,tries,t,ans){if(!me.sid)return;try{const D=this.env.DB,g=Math.min(gain(ok,tries,t,'acc'),Math.max(0,DUEL_XP_CAP-me.earned)),ca=ok?null:clean(ans);me.earned+=g;
- await ensureState(D,me.sid);
- await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(me.sid,'duel',w.w,ok?1:0,tries,t,g,ca,ca?classify(w.w,ca):null),await stateStmt(D,me.sid,w.w,ok,tries),D.prepare('update students set xp=xp+? where id=?').bind(g,me.sid)]);
+ await ensureState(D,me.sid);const sc=await stateCalc(D,me.sid,w.w,ok,tries);
+ await D.batch([D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(me.sid,'duel',w.w,ok?1:0,tries,t,g,ca,ca?classify(w.w,ca):null),sc.stmt,D.prepare('update students set xp=xp+? where id=?').bind(g,me.sid)]);if(me.nx)me.nx.set(w.w,sc.st);
  const s=await D.prepare('select xp from students where id=?').bind(me.sid).first(),pg=await progress(D,{id:me.sid,xp:s.xp});
  this.send(me,{t:'fx',gain:g,xp:s.xp,modes:ms(me.set,s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0})}catch{}}
 async win(me){try{const D=this.env.DB;await D.prepare('insert into duel_wins(student_id,room) values(?,?)').bind(me.sid,this.room).run();
