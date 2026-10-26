@@ -1,5 +1,5 @@
 :root{--bg:#1b1633;--bg2:#241d45;--card:#2a2250;--card2:#352b66;--ink:#f3efff;--mut:#b9aee3;--a:#8b5cf6;--ok:#86efac;--bad:#fca5a5;--r:16px;--nav:64px}
-body[data-t=ember]{--a:#f97316}body[data-t=frost]{--a:#06b6d4}body[data-t=gold]{--a:#eab308}
+body[data-t=apprentice]{--a:#2dd4bf}body[data-t=novice]{--a:#22c55e}body[data-t=adept]{--a:#3b82f6}body[data-t=sorcerer]{--a:#38bdf8}body[data-t=archmage]{--a:#a855f7}
 *{box-sizing:border-box}
 body{margin:0;font:18px/1.45 system-ui,-apple-system,sans-serif;background:radial-gradient(1100px 520px at 50% -8%,#4a36a055,transparent),var(--bg);color:var(--ink);min-height:100dvh;-webkit-text-size-adjust:100%}
 #shell{max-width:960px;margin:0 auto}

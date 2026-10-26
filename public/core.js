@@ -20,9 +20,9 @@ const AI=' autocomplete=off autocapitalize=none autocorrect=off spellcheck=false
 const noAid=el=>{if(el.matches&&el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=password]),textarea'))for(const k in NOAID)if(!el.hasAttribute(k))el.setAttribute(k,NOAID[k])};
 const noAidAll=r=>{noAid(r);r.querySelectorAll&&r.querySelectorAll('input,textarea').forEach(noAid)};
 new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>n.nodeType==1&&noAidAll(n)))).observe(document.documentElement,{childList:true,subtree:true});
-const TT=['Apprentice','Novice','Adept','Sorcerer','Archmage'],TH=['','ember','frost','gold','gold'],lv=x=>Math.floor(x/150)+1,rk=x=>Math.min(4,Math.floor(lv(x)/5));
-const UN=[[5,'Ember wand theme'],[5,'Wraith Dungeon'],[10,'Frost wand theme'],[10,'Mending Workshop'],[15,'Gold wand theme'],[20,'Curse-Breaking Tower']];
-const RC=['#7c3aed','#ea580c','#0891b2','#ca8a04','#be123c'],rob=()=>{const c=RC[rk(S.xp||0)];return{h:c,r:c}};
+const TT=['Apprentice','Novice','Adept','Sorcerer','Archmage'],TH=['apprentice','novice','adept','sorcerer','archmage'],lv=x=>Math.floor(x/150)+1,rk=x=>Math.min(4,Math.floor(lv(x)/5));
+const UN=[[5,'Novice wand theme (green)'],[5,'Wraith Dungeon'],[10,'Adept wand theme (blue)'],[10,'Mending Workshop'],[15,'Sorcerer wand theme (ice)'],[20,'Archmage wand theme (purple and gold)'],[20,'Curse-Breaking Tower']]; // each theme matches the colours of that rank's wizard
+const RC=['#2dd4bf','#22c55e','#3b82f6','#38bdf8','#a855f7'],rob=()=>{const c=RC[rk(S.xp||0)];return{h:c,r:c}};
 // Sound (Web Audio, no files) and haptics
 let AC;const muted=()=>localStorage.sa_mute==='1';
 addEventListener('pointerdown',()=>{try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch{}},{once:true});
