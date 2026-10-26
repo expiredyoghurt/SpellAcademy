@@ -1,5 +1,5 @@
 :root{--bg:#1b1633;--bg2:#241d45;--card:#2a2250;--card2:#352b66;--ink:#f3efff;--mut:#b9aee3;--a:#8b5cf6;--ok:#86efac;--bad:#fca5a5;--r:16px;--nav:64px}
-body[data-t=apprentice]{--a:#2dd4bf}body[data-t=novice]{--a:#22c55e}body[data-t=adept]{--a:#3b82f6}body[data-t=sorcerer]{--a:#38bdf8}body[data-t=archmage]{--a:#a855f7}
+body[data-t=apprentice]{--a:#2dd4bf}body[data-t=novice]{--a:#34d399}body[data-t=adept]{--a:#22c55e}body[data-t=sorcerer]{--a:#84cc16}body[data-t=enchanter]{--a:#3b82f6}body[data-t=conjurer]{--a:#6366f1}body[data-t=warlock]{--a:#38bdf8}body[data-t=magus]{--a:#a5b4fc}body[data-t=sage]{--a:#a855f7}body[data-t=archmage]{--a:#d97706}
 *{box-sizing:border-box}
 body{margin:0;font:18px/1.45 system-ui,-apple-system,sans-serif;background:radial-gradient(1100px 520px at 50% -8%,#4a36a055,transparent),var(--bg);color:var(--ink);min-height:100dvh;-webkit-text-size-adjust:100%}
 #shell{max-width:960px;margin:0 auto}
@@ -104,3 +104,31 @@ button.sm{min-height:36px;padding:2px 10px;margin:0;font-size:.85em}
 .battle{position:sticky;top:0;z-index:4}
 @media(max-height:560px){.battle{min-height:110px;padding-top:8px}.battle img{height:80px}.battle .wz img{height:72px}.wzs .wz img{height:64px}}
 .gu{margin-top:8px;width:100%;min-height:40px;font-size:.9em}.gu.sure{border-color:#ef4444;color:#fca5a5}
+
+/* ---- v2.8: ten tiers. Wizard size (--k keeps crowned sprites the same size), auras, and one spell per tier ---- */
+.battle img.pl{height:calc(120px*var(--k,1))}
+@media(max-height:560px){.battle img.pl{height:calc(80px*var(--k,1))}}
+.pl.au{filter:drop-shadow(0 4px 0 rgba(0,0,0,.3)) drop-shadow(0 0 5px var(--a)) drop-shadow(0 0 14px var(--a));animation:aura 2.4s ease-in-out infinite}
+.pl.au2{filter:drop-shadow(0 4px 0 rgba(0,0,0,.3)) drop-shadow(0 0 4px #fff8) drop-shadow(0 0 10px var(--a)) drop-shadow(0 0 22px var(--a));animation:aura2 2s ease-in-out infinite}
+@keyframes aura{50%{filter:drop-shadow(0 4px 0 rgba(0,0,0,.3)) drop-shadow(0 0 8px var(--a)) drop-shadow(0 0 24px var(--a))}}
+@keyframes aura2{50%{filter:drop-shadow(0 4px 0 rgba(0,0,0,.3)) drop-shadow(0 0 6px #fffc) drop-shadow(0 0 16px var(--a)) drop-shadow(0 0 34px var(--a))}}
+/* projectiles: .bN is the pupil's tier. Each overrides the plain orb above and keeps the same flight path (animation "bolt"). */
+.bolt[class*=" b"]{box-shadow:none;border-radius:0;background:none}
+.bolt.b1{width:48px;height:14px;margin-left:-24px;background:linear-gradient(90deg,transparent,#86efac 45%,#fff);clip-path:polygon(0 40%,68% 40%,68% 0,100% 50%,68% 100%,68% 60%,0 60%);filter:drop-shadow(0 0 5px #4ade80)}
+.bolt.b2{width:34px;height:34px;margin-left:-17px;margin-bottom:-8px;border-radius:50%;box-shadow:inset -9px 0 0 -1px #bbf7d0,inset -13px 0 6px -4px #4ade80,0 0 12px #4ade80;animation:bolt .36s .2s ease-in both,spin .36s .2s linear}
+.bolt.b3{width:30px;height:30px;margin-left:-15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 10%,#7dd3fc 22%,#2563eb 68%,#1e3a8a);box-shadow:0 0 14px 4px #3b82f6aa;animation:bolt .36s .2s ease-in both,wob .18s .2s ease-in-out 2}
+.bolt.b4{width:70px;height:16px;margin-left:-35px;background:linear-gradient(90deg,transparent,#3b82f6 35%,#bfdbfe 85%,#fff);clip-path:polygon(0 50%,22% 8%,100% 45%,100% 55%,22% 92%);filter:drop-shadow(0 0 6px #60a5fa)}
+.bolt.b5{width:28px;height:28px;margin-left:-14px;border-radius:50%;background:radial-gradient(circle,#fff 0 25%,#fde047 48%,transparent 70%);box-shadow:0 0 16px 8px #facc15;animation:bolt .36s .2s ease-in both,flick .12s .2s steps(2) 3}
+.bolt.b5::before{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px dashed #fef08a;animation:spin .36s linear}
+.bolt.b6{width:60px;height:30px;margin-left:-30px;background:linear-gradient(90deg,#facc15,#fff);clip-path:polygon(0 62%,18% 28%,30% 58%,52% 10%,62% 46%,100% 38%,72% 72%,62% 52%,40% 92%,30% 64%,10% 92%);filter:drop-shadow(0 0 6px #facc15);animation:bolt .36s .2s ease-in both,flick .1s .2s steps(2) 4}
+.bolt.b7{width:24px;height:18px;margin-left:-12px;border-radius:42% 58% 50% 50%;background:radial-gradient(circle at 35% 30%,#e7c9a0,#92602e 60%,#4a2e14);box-shadow:inset 0 0 0 2px #3f2a14;animation:bolt .3s .2s ease-in both,spin .3s .2s linear 1}
+.bolt.b7::after{content:"";position:absolute;right:100%;top:25%;width:34px;height:10px;background:linear-gradient(270deg,#92602e99,transparent);border-radius:50%}
+.bolt.b8{width:30px;height:30px;margin-left:-15px;border-radius:50%;background:radial-gradient(circle,#fff7ae 0 18%,#fb923c 48%,#dc2626 72%,transparent 76%);box-shadow:0 0 18px 8px #f97316;animation:bolt .36s .2s ease-in both,wob .12s .2s ease-in-out 3}
+.bolt.b8::after{content:"";position:absolute;right:70%;top:15%;width:40px;height:70%;background:linear-gradient(270deg,#f9731699,transparent);border-radius:50%}
+.bolt.b9{width:28px;height:28px;margin-left:-14px;border-radius:50%;background:radial-gradient(circle,#fff 0 20%,#c084fc 45%,#6d28d9 70%,transparent 74%);box-shadow:0 0 16px 6px #a855f7;animation:bolt .36s .2s ease-in both,wob .18s .2s ease-in-out 2}
+.bolt.b9::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px dotted #e9d5ff;animation:spin .5s linear}
+.bolt.b9::after{content:"";position:absolute;right:75%;top:20%;width:46px;height:60%;background:linear-gradient(270deg,#a855f7aa,transparent);border-radius:50%}
+.bolt.b10{width:36px;height:36px;margin-left:-18px;background:radial-gradient(circle,#fff 0 25%,#fbbf24 60%,#f59e0b);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);filter:drop-shadow(0 0 8px #fbbf24);animation:bolt .36s .2s ease-in both,spin .36s .2s linear 1}
+.bolt.b10::after{content:"";position:absolute;right:80%;top:30%;width:44px;height:40%;background:linear-gradient(270deg,#a855f7aa,transparent);border-radius:50%}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes wob{50%{transform:scale(1.2,.85)}}@keyframes flick{50%{opacity:.55;filter:brightness(1.8)}}
+@media(prefers-reduced-motion:reduce){.pl.au,.pl.au2{animation:none}.bolt[class*=" b"]{animation:bolt .36s .2s ease-in both!important}.bolt::before,.bolt::after{animation:none!important}}

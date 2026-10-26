@@ -125,7 +125,7 @@ async function progress(D,st){const id=st.id,now=Math.floor(Date.now()/1000),tod
   D.prepare("select count(*) n,coalesce(max(case when n>=5 then score*1.0/n end),0) best from trial_runs where student_id=? and status='done'").bind(id)]);
  const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n,tr=r[9].results[0];
  const s=streakOf(days,today),k=tot.k,l=lvl(st.xp);
- const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_archmage:l>=20,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50,trial_done:tr.n>=1,trial_ace:tr.best>=.9};
+ const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_enchanter:l>=20,rank_conjurer:l>=30,rank_warlock:l>=40,rank_magus:l>=50,rank_sage:l>=60,rank_archmage:l>=70,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50,trial_done:tr.n>=1,trial_ace:tr.best>=.9};
  const owned=new Set(have.map(x=>x.badge)),fresh=Object.keys(earned).filter(b=>earned[b]&&!owned.has(b));
  if(fresh.length)await D.batch(fresh.map(b=>D.prepare('insert or ignore into badges(student_id,badge) values(?,?)').bind(id,b)));
  const t=days.find(x=>x.d==today);

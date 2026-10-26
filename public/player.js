@@ -79,16 +79,16 @@ function forgeItem(it,rules,i,n){return new Promise(res=>{SPW=wcol();let tries=0
   $('#f').innerHTML='<span class=bad>Not quite! '+(tries==1?'Think about this rule: <b>'+esc(ru.n)+'</b>.':esc(ru.t)+' It begins "'+esc(it.w.slice(0,Math.ceil(it.w.length/2)))+'…"')+` (${3-tries} left)</span>`;$('#a').select()};
  $('#a').onkeydown=onEnter(()=>$('#go').click());$('#a').focus()})}
 // ---- Battle stage: the pupil's wizard (left) faces a wraith (right). A right answer: lunge, bolt, the wraith bursts. A wrong one: the wraith strikes. ----
-const RN=['apprentice','novice','adept','sorcerer','archmage'],WN=['simple','ice','fire','gloom','bone','cursed','ancient','void'],DWR=['simple','bone','gloom','ice','ice','fire','cursed','ancient','ancient','void'];
+const SPR=['apprentice','apprentice','novice','novice','adept','adept','sorcerer','sorcerer_crown','archmage','archmage_crown'],AU=['','au','','au','','au','','au2','','au2'],PK=[1,1,1,1,1,1,1,1.228,1,1.211],WN=['simple','ice','fire','gloom','bone','cursed','ancient','void'],DWR=['simple','bone','gloom','ice','ice','fire','cursed','ancient','ancient','void'];
 let SPW='simple',AW='simple';const wcol=()=>Math.random()<.04?'void':WN[Math.floor(Math.random()*7)];
-const pimg=(h=120)=>`<img class=pl src="/img/p_${RN[rk(S.xp||0)]}.png" alt="" style="height:${h}px">`;
-const stageIn=w=>`<span class=pz><img class=pl src="/img/p_${RN[rk(S.xp||0)]}.png" alt=""></span><span class=wz><img class=wr src="/img/w_${w}.png" alt=""></span>`;
+const pimg=(h=120)=>{const r=rk(S.xp||0);return `<img class="pl ${AU[r]}" src="/img/p_${SPR[r]}.png" alt="" style="height:${Math.round(h*PK[r])}px">`},plS=()=>{const r=rk(S.xp||0);return `<img class="pl ${AU[r]}" src="/img/p_${SPR[r]}.png" alt="" style="--k:${PK[r]}">`};
+const stageIn=w=>`<span class=pz>${plS()}</span><span class=wz><img class=wr src="/img/w_${w}.png" alt=""></span>`;
 const battle=(id,w)=>`<div id=${id} class="card stage battle">${stageIn(w)}</div>`;
 function cast(e,k){if(!e)return;const p=e.querySelector('.pz'),ws=[...e.querySelectorAll('.wz')];if(!p||!ws.length)return;
  for(const x of e.querySelectorAll('.bolt,.pf'))x.remove();p.className='pz';ws.forEach(w=>w.className='wz');void e.offsetWidth;
- const c=RC[rk(S.xp||0)];let hit=false;
+ const tr=rk(S.xp||0),c=BC[tr];let hit=false;
  for(const w of ws){if(k=='ok'&&!w.dataset.m){hit=true;w.classList.add('burst');for(let i=0;i<12;i++){const f=document.createElement('i'),a=i/12*6.283,d=40+Math.random()*30;f.className='pf';f.style.cssText=`--dx:${Math.cos(a)*d}px;--dy:${Math.sin(a)*d}px;--c:${i%2?c:'#fff'}`;w.appendChild(f)}}else w.classList.add('strike')}
- if(hit){const b=document.createElement('i');b.className='bolt';b.style.setProperty('--c',c);e.appendChild(b)}else p.classList.add('hit')}
+ if(hit){const b=document.createElement('i');b.className='bolt b'+(tr+1);b.style.setProperty('--c',c);e.appendChild(b)}else p.classList.add('hit')}
 
 function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol();let tries=0,t0=Date.now(),left=20,last='';
  const sc=esc(it.s).replace('{w}',mode==2?`<b class=bad>${esc(shown||mis(it.w,it.x))}</b> <input id=a class="ans inl" size=12 ${AI}>`:'_____');
@@ -101,7 +101,7 @@ function single(it,mode,i,n,shown,tag){return new Promise(res=>{cur=it;SPW=wcol(
  if(focus=='spd')timer=setInterval(()=>{$('#tm').textContent='⏱'+--left;if(left<=0){tries=3;fin(false)}},1000);
  if(mode==1)say(it.w)})}
 function spotFx(bad,sel){const hit=[...bad].filter(i=>sel.has(i)).length,fp=[...sel].filter(i=>!bad.has(i)).length,good=hit==bad.size&&!fp;sfx(good?'ok':'no');
- R(hdr()+`<div id=sp class="card stage battle"><span class=pz><img class=pl src="/img/p_${RN[rk(S.xp||0)]}.png" alt=""></span><span class=wzs>${[...bad].map(i=>`<span class=wz${sel.has(i)?'':' data-m=1'}><img class=wr src="/img/w_${wcol()}.png" alt=""></span>`).join('')}</span></div><div class="card center"><p>${hit}/${bad.size} cursed words found${fp?`, ${fp} false alarm${fp>1?'s':''}`:''}. Now break each curse!</p><button id=nx class=wide>Continue</button></div>`);setTimeout(()=>cast($('#sp'),'ok'),250);return new Promise(r=>$('#nx').onclick=r)}
+ R(hdr()+`<div id=sp class="card stage battle"><span class=pz>${plS()}</span><span class=wzs>${[...bad].map(i=>`<span class=wz${sel.has(i)?'':' data-m=1'}><img class=wr src="/img/w_${wcol()}.png" alt=""></span>`).join('')}</span></div><div class="card center"><p>${hit}/${bad.size} cursed words found${fp?`, ${fp} false alarm${fp>1?'s':''}`:''}. Now break each curse!</p><button id=nx class=wide>Continue</button></div>`);setTimeout(()=>cast($('#sp'),'ok'),250);return new Promise(r=>$('#nx').onclick=r)}
 async function spot(it){const bad=new Set();while(bad.size<2)bad.add(Math.floor(Math.random()*4));
  const sh=it.map((x,i)=>bad.has(i)?mis(x.w,x.x):x.w),sel=new Set(),t0=Date.now();let g=0;
  R(hdr()+`<div class=card><b>Tap the misspelled words, then submit.</b><p>${it.map((x,i)=>esc(x.s).replace('{w}',`<span class=w data-i=${i}>${esc(sh[i])}</span>`)).join(' ')}</p><button id=go class=wide>Submit</button>${GU}</div>`);
