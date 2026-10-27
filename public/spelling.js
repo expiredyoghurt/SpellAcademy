@@ -17,6 +17,7 @@ const snd=s=>squash(s.replace(/ight/g,'ite').replace(/tion|sion|cian|tian|sian|c
 const subseq=(a,t)=>{let i=0;for(const c of t)if(i<a.length&&a[i]===c)i++;return i===a.length};
 function classify(word,ans){const t=norm(word),a=norm(ans);if(!a||a===t)return null;
  if(squash(a)===squash(t))return 'doubling';                    // neccessary, embarass, tommorow
+ if(a===t.slice(0,-1)&&t.length>=3&&t.endsWith('e')&&!isV(t[t.length-2]))return 'silente'; // kit for kite, hop for hope: the silent e was left out (v3.0)
  if(a.length===t.length){let i=0;while(a[i]===t[i])i++;if(a[i]===t[i+1]&&a[i+1]===t[i]&&a.slice(i+2)===t.slice(i+2))return isV(a[i])&&isV(a[i+1])?'vowel':'transposition'} // form/from (swapped vowels such as ie/ei count as vowel errors)
  if(skel(a)===skel(t))return 'vowel';                           // recieve, seperate, definately, freind
  if(snd(a)===snd(t))return 'phonetic';                          // foto, reseive, lite, nife
@@ -52,7 +53,7 @@ function cands(w){const m=new Map(),n=w.length;
  if(n>=4){const k=1.5/(n-2);for(let i=1;i<n-1;i++)add(sub(i,1,''),k)}                                                   // one letter missed
  if(n>=3){const k=1/(n-1);for(let i=0;i<n-1;i++)if(w[i]!==w[i+1])add(sub(i,2,w[i+1]+w[i]),k)}                           // swapped letters
  return m}
-const TW={vowel:30,doubling:25,phonetic:25,omission:12,transposition:3,insertion:1}; // how often each kind of slip is chosen (when the word allows it)
+const TW={silente:12,vowel:30,doubling:25,phonetic:25,omission:12,transposition:3,insertion:1}; // how often each kind of slip is chosen (when the word allows it)
 function byType(w){const by={};for(const[s,wt]of cands(w)){const t=classify(w,s);if(t&&t!=='other')(by[t]=by[t]||[]).push([s,wt])}return by}
 const wpick=(L,f)=>{let r=L.reduce((x,y)=>x+f(y),0)*Math.random();for(const y of L){r-=f(y);if(r<=0)return y}return L[0]};
 function types(word){return new Set(Object.keys(byType(norm(word))))}

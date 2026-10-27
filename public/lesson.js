@@ -1,0 +1,73 @@
+// Spellcraft Lessons (v3.0): the pupil's screens. Lesson content lives in lessons.js; scoring and answers live in the Worker.
+// Stages: learn (encounter, notice, strategy) -> guided practice (hints) -> recall (no hints) -> transfer (new words) -> retain (days later).
+const STG=[['learn','📜','Learn the charm','Meet the pattern, spot it, and learn the rule behind it.'],['guided','🧪','Guided practice','Practise with hints whenever you need them. Hints are counted, so try without!'],['recall','🧠','Cast it alone','No hints and one try. Show that you can do it on your own.'],['transfer','🌍','New words','Words you were never taught. Can you use the rule on them?'],['retain','🕰️','Memory check','A few days later: does the rule still work in your head?']];
+const lpc=m=>m&&m.n?Math.round(100*m.k/m.n)+'%':'–',LB5={learn:1,guided:2,recall:4,transfer:8,retain:16};
+let LS=null;
+const lsync=r=>{if(r&&r.xp!=null){S.xp=r.xp;if(r.modes)S.modes=r.modes;save();fx(r)}};
+const lerr=r=>{alert(r.error=='locked'?'Spellcraft Lessons have been sealed by your teacher for now.':r.error)};
+const lpage=(h,btn='Next')=>new Promise(res=>{R(hdr()+`<div class=card>${h}<button id=nx class=wide>${btn}</button><button class="ghost wide" onclick="lessons()">Leave lesson</button></div>`);$('#nx').onclick=()=>res();$('#nx').focus()});
+const lhl=(w,tr)=>tr&&w.includes(tr)?esc(w).replace(esc(tr),'<mark>'+esc(tr)+'</mark>'):esc(w);
+const lhear=w=>`<button onclick="say('${w}')">🔊 ${esc(w)}</button>`;
+// ---- The hub ----
+async function lessons(){R(hdr()+'<div class=card><small>Opening the library…</small></div>','rooms');
+ const r=await api('lessons');if(r.error){lerr(r);return rooms()}LS=r;
+ const nos=new Set(Lessons.LIST.map(l=>l.no));
+ R(hdr()+`<h2>📜 Spellcraft Lessons</h2><div class=card><small>Do not just memorise words: learn <b>why</b> they are spelled the way they are. Each lesson takes you from <b>noticing</b> a pattern, to <b>learning the rule</b>, to <b>using it alone</b> on new words, and finally to <b>remembering</b> it days later.</small></div>`+
+  Lessons.LIST.map(l=>{const d=LS.lessons.find(x=>x.id==l.id)||{stages:0,m:null},done=STG.filter(s=>d.stages&LB5[s[0]]).length;
+   return `<div class="card room les"><span class=ic>${l.icon}</span><div><b>Lesson ${l.no}: ${esc(l.name)}</b><br><small>${esc(l.sub)}</small><div class=pips>${STG.map(s=>`<i class="pip ${d.stages&LB5[s[0]]?'on':''}" title="${s[2]}">${s[1]}</i>`).join('')}</div></div><button onclick="lessonOpen('${l.id}')">${done==0?'Start':done==5?'Review':'Continue'}</button></div>`}).join('')+
+  `<h3>Coming next</h3><div class=card><small>${Lessons.PLAN.filter(p=>!nos.has(p[0])).map(p=>`<b>${p[0]}. ${esc(p[1])}</b> · ${esc(p[2])}`).join('<br>')}</small></div><button class="wide ghost" onclick=rooms()>Back to Rooms</button>`,'rooms')}
+const lmet=m=>{const rows=[['🧠','Spelling on your own',m.ind],['🌍','New words',m.tr],['🕰️','Remembered days later',m.ret],['🔭','Spotting the pattern',m.pat],['📖','Knowing the rule',m.str]].filter(x=>x[2].n);
+ return (m.guided.n?`<div>💡 Guided words with no hint: <b>${m.guided.i}/${m.guided.n}</b></div>`:'')+rows.map(x=>`<div>${x[0]} ${x[1]}: <b>${lpc(x[2])}</b> <small>(${x[2].n})</small></div>`).join('')};
+// ---- One lesson: its five stages ----
+function lessonOpen(id){const L=Lessons.get(id),d=LS&&LS.lessons.find(x=>x.id==id)||{stages:0,m:null,retainAt:null},has=b=>d.stages&b,
+ st={learn:[1,''],guided:[has(1),'Finish “Learn the charm” first.'],recall:[has(2),'Finish guided practice first.'],transfer:[has(4),'Pass “Cast it alone” first.'],retain:[has(4)&&has(8)&&d.retainAt===0,d.retainAt==null?'Pass the first four steps first.':'Opens in '+Math.max(1,Math.ceil((d.retainAt-Date.now()/1000)/86400))+' day(s). Memories need time to settle!']};
+ R(hdr()+`<h2>${L.icon} ${esc(L.name)}</h2><div class=card><small>${esc(L.goal)}</small></div>`+STG.map(s=>{const[ok,why]=st[s[0]],dn=has(LB5[s[0]]);
+  return `<div class="card room ${ok?'':'lock'}"><span class=ic>${dn?'✅':ok?s[1]:'🔒'}</span><div><b>${s[2]}</b><br><small>${ok?s[3]:esc(why)}</small></div>${ok?`<button onclick="lessonStage('${id}','${s[0]}')">${dn?'Again':'Go'}</button>`:''}</div>`}).join('')+
+  (d.m&&(d.m.ind.n||d.m.pat.n||d.m.guided.n)?`<h3>Your lesson record</h3><div class=card>${lmet(d.m)}<small style=display:block;margin-top:6px>Answers with hints are counted separately from answers you gave on your own.</small></div>`:'')+`<button class="wide ghost" onclick=lessons()>All lessons</button>`,'rooms')}
+const lessonStage=(id,s)=>s=='learn'?lLearn(id):s=='guided'?lGuided(id):lRun(id,s);
+// ---- A question card: notice, why or diagnose. Logged by kind. ----
+function lmc(L,stage,q,i,n){return new Promise(res=>{const ord=q.o.map((t,j)=>[t,j]).sort(()=>Math.random()-.5),title={notice:'🔭 Spot the pattern',diag:'🩺 Error doctor',why:'💭 Think about why',rule:'🧩 Which rule?'}[q.k]||'Think';
+ R(hdr()+`<div class=card><div class=prog><small>${title}</small><small>${i}/${n}</small></div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div><p>${esc(q.q)}</p><div id=ob>${ord.map(([t,j])=>`<button class="wide opt" data-j=${j}>${esc(t)}</button>`).join('')}</div><div id=fb></div></div>`);
+ document.querySelectorAll('#ob button').forEach(b=>b.onclick=async()=>{const ok=+b.dataset.j===q.a;document.querySelectorAll('#ob button').forEach(x=>{x.disabled=true;if(+x.dataset.j===q.a)x.classList.add('right')});if(!ok)b.classList.add('wrong');sfx(ok?'ok':'no');
+  $('#fb').innerHTML=`<p class=${ok?'ok':'bad'}>${ok?'✨ Yes!':'Not quite.'}</p><p>${esc(q.x)}</p><button id=nx class=wide>Next</button>`;$('#nx').onclick=()=>res(ok);$('#nx').focus();
+  const r=await api('lesson/log',{lesson:L.id,stage,kind:q.k,item:q.id,ok});lsync(r)})})}
+// ---- Stage 1: learn ----
+async function lLearn(id){const L=Lessons.get(id),e=L.enc||{},nq=L.notice.length,wq=L.strat.why.length;
+ await lpage(`<h2>${L.icon} 1. Meet the pattern</h2><p>${esc(e.say||'Listen to these words and look closely at how they are spelled.')}</p>${(e.pairs||[]).map(p=>`<div class=pair>${p.map(lhear).join(' <b>→</b> ')}</div>`).join('')}${(e.items||[]).map(x=>`<div class=pair>${lhear(x.w)} <span class=big2>${lhl(x.w,x.tr)}</span>${x.hook?`<br><small>${esc(x.hook)}</small>`:''}</div>`).join('')}`);
+ for(let i=0;i<nq;i++)await lmc(L,'learn',L.notice[i],i+1,nq);
+ await lpage(`<h2>${L.icon} 2. ${esc(L.strat.title)}</h2><ol class=steps>${L.strat.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol><div class=rule>${L.strat.ex}</div><h3>Why do some words break the rule?</h3>${L.strat.exc.map(x=>`<details class=card><summary>${esc(x.t)}</summary><p>${esc(x.x)}</p></details>`).join('')}`,'I understand. Test me!');
+ for(let i=0;i<wq;i++)await lmc(L,'learn',L.strat.why[i],i+1,wq);
+ const r=await api('lesson/stage',{lesson:id,stage:'learn'});if(r.error){alert(r.error);return lessonOpen(id)}lsync(r);await lrefresh(id);
+ R(hdr()+`<div class="card center"><h2>${L.icon} Lesson learned!</h2>${r.bonus?`<div class=big>+${r.bonus}</div><small>bonus XP</small>`:''}<p>Next: practise with hints on hand.</p></div><button class="wide big" onclick="lessonStage('${id}','guided')">🧪 Guided practice</button><button class="wide ghost" onclick="lessonOpen('${id}')">Back to the lesson</button>`);confetti();sfx('ok')}
+const lrefresh=async id=>{const r=await api('lessons');if(!r.error)LS=r}; // refresh stage bits
+// ---- The question on screen, in guided and independent rounds ----
+const lprompt=(it,blank)=>it.l!==undefined?`<div class=forge><span class=fp>${esc(it.l)}</span><b>+</b><span class=fp>${esc(it.r)}</span><b>=</b><span class=fp>?</span></div><p>${esc(it.s).replace('{w}','_____')}</p>`:`<span class=row><button onclick="say('${it.w}')">🔊 Hear</button><button class=ghost onclick="say('${it.w}',.5)">🐢 Slow</button><button class=ghost onclick="say(${JSON.stringify(it.s.replace('{w}',it.w))})">🔊 Sentence</button></span><p><small>${esc(it.s).replace('{w}','_____')}</small></p>`;
+const lwhy=(L,it)=>{const r=L.rules&&L.rules[it.rule];return r?`<div class=rule><b>${esc(r.n)}</b><br><small>${esc(r.t)}</small></div>`:it.hook?`<div class=rule><b>Memory hook</b><br><small>${lhl(it.w,it.tr)}: ${esc(it.hook)}</small></div>`:''};
+// ---- Stage 2: guided practice (up to 3 hints; every hint is counted) ----
+async function lGuided(id){const L=Lessons.get(id),n=L.guided.length;let got=0;
+ for(let i=0;i<n;i++)got+=await lGItem(L,L.guided[i],i+1,n);
+ const r=await api('lesson/stage',{lesson:id,stage:'guided'});if(r.error){alert(r.error);return lessonOpen(id)}lsync(r);await lrefresh(id);
+ R(hdr()+`<div class="card center"><h2>🧪 Guided practice done</h2><div class=big>${got}/${n}</div><small>words with no hint</small>${r.bonus?`<p>+${r.bonus} bonus XP</p>`:''}<p>${got==n?'Wonderful: you did not need a single hint.':'Hints are there to help you learn. Now try it on your own, without them.'}</p></div><button class="wide big" onclick="lessonStage('${id}','recall')">🧠 Cast it alone</button><button class="wide ghost" onclick="lessonOpen('${id}')">Back to the lesson</button>`);sfx('ok')}
+function lGItem(L,it,i,n){return new Promise(res=>{let hints=0,last='';const t0=Date.now(),h=L.hints(it);
+ R(hdr()+`<div class=card><div class=prog><small>🧪 Guided ${i}/${n}</small><small>💡 hints used: <b id=hc>0</b></small></div><div class=bar><i style="width:${(i-1)/n*100}%"></i></div>${lprompt(it)}<input id=a class=ans ${AI}><div id=hn></div><button id=go class=wide>Check</button><button id=hb class="ghost wide">💡 Hint (0/3)</button><p id=f></p><button class="ghost wide" onclick="lessons()">Leave lesson</button></div>`);
+ const show=()=>{$('#hn').innerHTML=h.slice(0,hints).map((t,k)=>`<div class=hint><b>Hint ${k+1}</b> ${esc(t)}</div>`).join('');$('#hc').textContent=hints;$('#hb').textContent=`💡 Hint (${hints}/3)`;if(hints>=3)$('#hb').disabled=true};
+ const fin=async ok=>{$('#go').remove();$('#hb').remove();const r=await api('lesson/log',{lesson:L.id,stage:'guided',kind:'word',item:it.w,ok,hints,ans:ok?'':last,ms:Date.now()-t0});lsync(r);sfx(ok?'ok':'no');
+  $('#f').innerHTML=(ok?`<span class=ok>✨ +${r.gain||0} XP</span><br><small>${hints?'You used '+hints+' hint'+(hints>1?'s':'')+'. Next time, try with fewer!':'No hints needed. 🌟'}</small>`:`<span class=bad>The word is <b>${esc(it.w)}</b>.</span><br>${last?diff(last,it.w)+'<br>'+esc(L.diag(it,last)):''}`)+lwhy(L,it)+`<button id=nx class=wide>Next</button>`;$('#nx').onclick=()=>res(ok&&!hints?1:0);$('#nx').focus()};
+ $('#hb').onclick=()=>{if(hints<3){hints++;show()}$('#a').focus()};
+ $('#go').onclick=()=>{const v=$('#a').value.trim().toLowerCase();if(!v)return;last=v;if(v===it.w)return fin(true);if(hints>=3)return fin(false);hints++;show();$('#f').innerHTML=`<span class=bad>Not yet.</span> ${esc(L.diag(it,v))}`;$('#a').select()};
+ $('#a').onkeydown=onEnter(()=>$('#go').click());$('#a').focus();if(it.l===undefined)say(it.w)})}
+// ---- Stages 3 to 5: recall, transfer, retain. The Worker holds the words and the answers; no hints, one try. ----
+function lq(L,q,i,n,title){return new Promise(res=>{const t0=Date.now();
+ R(hdr()+`<div class=card><div class=prog><small>${title}</small><small>${i+1}/${n}</small></div><div class=bar><i style="width:${i/n*100}%"></i></div><p><small>No hints. One try. Only your first answer counts.</small></p>${lprompt(q)}<input id=a class=ans ${AI}><button id=go class=wide>Cast!</button><p id=f></p><button class="ghost wide" onclick="lessons()">Leave lesson</button></div>`);
+ const go=()=>{const v=$('#a').value.trim();if(!v)return;$('#go').disabled=true;res({v,ms:Date.now()-t0})};$('#go').onclick=go;$('#a').onkeydown=onEnter(go);$('#a').focus();if(q.k=='hear')say(q.w)})}
+async function lRun(id,stage){const L=Lessons.get(id),r=await api('lesson/start',{lesson:id,stage});if(r.error){lerr(r);return lessonOpen(id)}
+ let q=r.q,i=0;const n=r.n,run=r.run,l0=lv(S.xp),title={recall:'🧠 Cast it alone',transfer:'🌍 New words',retain:'🕰️ Memory check'}[stage],ex=stage=='transfer'?[1,3].filter(k=>k<n-1):[],pool=[...(L.explain||[])].sort(()=>Math.random()-.5);
+ for(;;){const{v,ms}=await lq(L,q,i,n,title),x=await api('lesson/answer',{run,i,a:v,ms});
+  if(x.error){alert(x.error);return lessonOpen(id)}if(x.sync){q=x.q||q;i=x.i;if(i>=n)return lessonOpen(id);continue}
+  lsync(x);const it=Lessons.find(id,x.w)||{w:x.w,l:q.l,r:q.r,rule:x.rule,s:q.s};sfx(x.ok?'ok':'no');
+  await new Promise(go=>{R(hdr()+`<div class=card><div class=prog><small>${title}</small><small>${i+1}/${n}</small></div><div class=bar><i style="width:${(i+1)/n*100}%"></i></div>${x.ok?`<p class=ok>✨ Correct! +${x.gain} XP</p>`:`<p class=bad>The word is <b>${esc(x.w)}</b>.</p>${diff(v.toLowerCase(),x.w)}<p>${esc(L.diag(it,v.toLowerCase()))}</p>`}${lwhy(L,it)}<button id=nx class=wide>${x.done?'See results':'Next'}</button></div>`);$('#nx').onclick=go;$('#nx').focus()});
+  if(ex.includes(i)){const rl=L.rules&&L.rules[x.rule],qq=rl?mcRule(L,it,x):pool.shift();if(qq)await lmc(L,stage,qq,ex.indexOf(i)+1,ex.length)} // transfer: explain the decision just made
+  if(x.done){const l1=lv(S.xp);R(hdr()+`<div class="card center"><h2>${x.passed?'✨ Stage passed!':'Not quite there yet'}</h2><div class=big>${x.score}/${n}</div><small>right on your own (needed ${x.need})</small>${x.bonus?`<p>+${x.bonus} bonus XP</p>`:''}${l1>l0?`<p>🎉 Rank up! You are now <b>${TT[rk(S.xp)]}</b> Lv${l1}</p>`:''}<p>${x.passed?(stage=='retain'?'Your memory held, days later. That is real learning.':'Well done! Every answer was yours, with no hints.'):stage=='retain'?'Look at the lesson again, practise a little, and try the memory check once more in a couple of days.':'Look at the hints again in guided practice, then try again. Wrong answers are how the brain learns.'}</p></div>${x.passed?'':`<button class="wide big" onclick="lessonStage('${id}','${stage}')">Try again</button>`}<button class="wide ${x.passed?'big':'ghost'}" onclick="lessonOpen('${id}')">Back to the lesson</button>`);if(x.passed){confetti();sfx(l1>l0?'lvl':'ok')}await lrefresh(id);return}
+  q=x.q;i=x.i}}
+// "Which rule did you use?" card, built from the item just answered (lessons whose items carry a rule)
+const mcRule=(L,it,x)=>{const rs=Object.entries(L.rules),a=rs.findIndex(e=>e[0]==x.rule);return a<0?null:{id:'r_'+x.w,k:'rule',q:`You spelled ${it.l} + ${it.r}. Which rule did you use?`,o:rs.map(e=>e[1].n),a,x:L.rules[x.rule].t}};

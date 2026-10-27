@@ -132,3 +132,19 @@ button.sm{min-height:36px;padding:2px 10px;margin:0;font-size:.85em}
 .bolt.b10::after{content:"";position:absolute;right:80%;top:30%;width:44px;height:40%;background:linear-gradient(270deg,#a855f7aa,transparent);border-radius:50%}
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes wob{50%{transform:scale(1.2,.85)}}@keyframes flick{50%{opacity:.55;filter:brightness(1.8)}}
 @media(prefers-reduced-motion:reduce){.pl.au,.pl.au2{animation:none}.bolt[class*=" b"]{animation:bolt .36s .2s ease-in both!important}.bolt::before,.bolt::after{animation:none!important}}
+
+/* ---- v2.9: My Spells (Me tab) ---- */
+.spg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:10px 0}
+.spl{background:var(--card2);border:2px solid transparent;border-radius:14px;padding:8px;text-align:center;cursor:pointer}
+.spl.on{border-color:var(--a);box-shadow:0 0 12px -2px var(--a)}.spl.lock{opacity:.45;cursor:default;filter:grayscale(1)}.spl small{display:block}
+.spv{position:relative;height:56px;overflow:hidden}
+.spv .bolt{animation-duration:1.4s!important;animation-delay:0s!important;animation-iteration-count:infinite!important}
+.spv .bolt::before,.spv .bolt::after{animation-duration:1.4s!important;animation-delay:0s!important;animation-iteration-count:infinite!important}
+@media(prefers-reduced-motion:reduce){.spv .bolt[class*=" b"]{animation:none!important;opacity:1;left:50%}}
+
+/* ---- Spellcraft Lessons (v3.0) ---- */
+.opt{text-align:left;background:var(--card2);border:2px solid transparent;color:var(--ink)}.opt.right{background:#14532d;border-color:var(--ok)}.opt.wrong{background:#7f1d1d;border-color:var(--bad)}
+.hint{background:#0004;border-left:4px solid #fbbf24;border-radius:10px;padding:8px 12px;margin:8px 0}
+.pips{display:flex;gap:6px;margin-top:6px}.pip{font-style:normal;opacity:.3;filter:grayscale(1)}.pip.on{opacity:1;filter:none}
+.pair{font-size:1.15em;margin:10px 0;text-align:center}.pair button{margin:2px}.big2{font-size:1.5em;letter-spacing:.06em;margin:0 8px}mark{background:#fbbf24;color:#1b1633;border-radius:4px;padding:0 3px}
+.steps{padding-left:22px}.steps li{margin:8px 0}.pill.pt{background:#0006;border:1px solid var(--a)}.card.les .pips{font-size:.9em}
