@@ -1,6 +1,6 @@
 create table if not exists teachers(id integer primary key autoincrement,user text unique,salt text,hash text);
 create table if not exists classes(code text primary key,name text,teacher_id integer,settings text default '{}');
-create table if not exists students(id integer primary key autoincrement,name text collate nocase,code text,xp integer default 0,unique(name,code));
+create table if not exists students(id integer primary key autoincrement,name text collate nocase,code text,xp integer default 0,spell integer default 0,unique(name,code));
 create table if not exists lists(id integer primary key autoincrement,code text,name text,words text,owner integer,levels text default '[]',shared text default '[]',declined text default '[]');
 create table if not exists attempts(id integer primary key autoincrement,student_id integer,mode text,word text,ok integer,tries integer,ms integer,xp integer,ts integer default (unixepoch()),ans text,etype text);
 create index if not exists a_s on attempts(student_id);
@@ -18,3 +18,10 @@ create table if not exists trial_runs(id integer primary key autoincrement,trial
 create unique index if not exists trr_u on trial_runs(trial_id,student_id);
 create index if not exists trr_s on trial_runs(student_id);
 create table if not exists trial_answers(run_id integer,idx integer,word text,kind text,ans text,ok integer,ms integer,etype text,primary key(run_id,idx));
+
+-- v3.0 Spellcraft Lessons
+create table if not exists lesson_state(student_id integer,lesson text,stages integer default 0,upd integer default 0,primary key(student_id,lesson));
+create table if not exists lesson_attempts(id integer primary key autoincrement,student_id integer,lesson text,stage text,kind text,item text,ok integer,hints integer default 0,ans text,etype text,ts integer default (unixepoch()));
+create index if not exists la_s on lesson_attempts(student_id,lesson);
+create table if not exists lesson_runs(id integer primary key autoincrement,student_id integer,lesson text,stage text,cur text,i integer default 0,score integer default 0,n integer default 0,status text default 'active',ts integer default (unixepoch()));
+create index if not exists lr_s on lesson_runs(student_id);
