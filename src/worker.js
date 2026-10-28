@@ -81,7 +81,7 @@ const LES_XP={ind:6,hint:2,miss:1,mc:2},LES_BONUS={learn:10,guided:10,recall:20,
 const LES_N={recall:6,transfer:5,retain:6},LES_PASS={recall:4,transfer:3,retain:4}; // words per round, and how many must be right to pass the stage
 const RETAIN_DAYS=2,LES_DAY_CAP=80,LB=Lessons.BIT; // retention check opens this many days after the last independent answer; max XP-earning learn/guided answers per lesson per day
 const LES_KINDS=new Set(['notice','diag','why','rule']);
-const lesPub=it=>it.l?{k:'join',l:it.l,r:it.r,s:it.s}:{k:'hear',w:it.w,s:it.s,sn:it.s.replace('{w}',it.w)}; // the answer is never sent for a join item
+const lesPub=it=>it.l?{k:'join',l:it.l,r:it.r,s:it.s}:it.bad!==undefined?{k:'fix',bad:it.bad,s:it.s}:{k:'hear',w:it.w,s:it.s,sn:it.s.replace('{w}',it.w)}; // the answer is never sent for a join item
 const lesZero=()=>({ind:{n:0,k:0},guided:{n:0,k:0,i:0},pat:{n:0,k:0},str:{n:0,k:0},tr:{n:0,k:0},ret:{n:0,k:0}});
 // Metrics from rows {lesson,stage,kind,n,k,i0}: ind = independent spelling (recall + transfer + retain), guided.i = guided words right with no hint,
 // pat = pattern recognition (notice + diagnose cards), str = strategy knowledge (why + rule cards), tr = transfer, ret = delayed retention
@@ -98,20 +98,24 @@ async function lesData(D,id){const r=await D.batch([D.prepare('select '+LES_COLS
 async function lesPass(D,id,lesson,stage){const bit=LB[stage],row=await D.prepare('select stages from lesson_state where student_id=? and lesson=?').bind(id,lesson).first();if(row&&(row.stages&bit))return 0;
  const now=Math.floor(Date.now()/1000);await D.batch([D.prepare('insert into lesson_state(student_id,lesson,stages,upd) values(?,?,?,?) on conflict(student_id,lesson) do update set stages=stages|?,upd=?').bind(id,lesson,bit,now,bit,now),D.prepare('update students set xp=xp+? where id=?').bind(LES_BONUS[stage],id)]);return LES_BONUS[stage]}
 // Words for a recall, transfer or retention round: words not seen for longest (or never) first, random among equals.
-async function lesItems(D,id,les,stage,bank){
+async function lesItems(D,id,les,stage,bank,eb){
  const seen=new Map((await D.prepare("select item,max(ts) t from lesson_attempts where student_id=? and lesson=? and kind='word' and stage!='guided' group by item").bind(id,les.id).all()).results.map(x=>[x.item,x.t]));
  const shuf=a=>a.map(x=>[x,Math.random()]).sort((p,q)=>p[1]-q[1]).map(x=>x[0]),order=a=>shuf(a).sort((x,y)=>(seen.get(x.w)||0)-(seen.get(y.w)||0));
- const have=new Set(Lessons.pools(les).map(x=>x.w)),extra=les.bank?(bank||[]).filter(x=>x.s&&x.s.includes('{w}')&&!have.has(x.w)&&les.match(x.w)).map(x=>({w:x.w,s:x.s,tr:'',hook:x.h||''})):[]; // the class's own word bank supplies extra transfer words
- if(stage==='recall')return order(les.recall).slice(0,LES_N.recall);
- if(stage==='transfer')return order([...les.transfer,...extra]).slice(0,LES_N.transfer);
- const all=[...Lessons.pools(les),...extra],met=order(all.filter(x=>seen.has(x.w))).slice(0,4),fresh=shuf(all.filter(x=>!seen.has(x.w)&&!met.includes(x))); // retention: mostly words met before, plus new words
- return shuf([...met,...fresh.slice(0,LES_N.retain-met.length)])}
+ const have=new Set(Lessons.pools(les).map(x=>x.w)),okx=les.accept||(x=>les.match(x.w)),good=x=>x.s&&x.s.includes('{w}')&&x.w===x.w.toLowerCase()&&!have.has(x.w); // answers are compared in lower case, so capitalised bank words are never used
+ const extra=les.bank?(bank||[]).filter(x=>good(x)&&okx(x)).map(x=>({w:x.w,s:x.s,tr:'',hook:x.h||'',...(les.mk?les.mk(x):{})})):[]; // the class's own word bank supplies extra transfer words
+ const pick=a=>a[Math.floor(Math.random()*a.length)];
+ const fx=les.fix&&les.bank&&eb?(bank||[]).filter(x=>good(x)&&(eb.get(x.w)||[]).length).map(x=>({w:x.w,s:x.s,tr:'',hook:'',bad:pick(eb.get(x.w))})):[]; // Error Diagnosis: words the class has REALLY misspelled
+ const real=it=>{if(!les.fix||!eb)return it;const l=eb.get(it.w)||[];return l.length&&Math.random()<.7?{...it,bad:pick(l)}:it}; // a real wrong spelling from this class when there is one
+ if(stage==='recall')return order(les.recall).slice(0,LES_N.recall).map(real);
+ if(stage==='transfer')return order([...les.transfer,...extra,...fx]).slice(0,LES_N.transfer).map(real);
+ const all=[...Lessons.pools(les),...extra,...fx],met=order(all.filter(x=>seen.has(x.w))).slice(0,4),fresh=shuf(all.filter(x=>!seen.has(x.w)&&!met.includes(x))); // retention: mostly words met before, plus new words
+ return shuf([...met,...fresh.slice(0,LES_N.retain-met.length)]).map(real)}
 // Class view for the teacher: per lesson, how many pupils started, how many passed each stage, and the class's independent accuracy, hint use and retention.
 async function lesClass(D,code){const r=await D.batch([D.prepare('select '+LES_COLS+' from lesson_attempts join students s on s.id=lesson_attempts.student_id where s.code=? group by lesson,stage,kind').bind(code),
   D.prepare('select lesson,count(distinct student_id) p from lesson_attempts join students s on s.id=lesson_attempts.student_id where s.code=? group by lesson').bind(code),
-  D.prepare('select lesson,coalesce(sum(stages&1>0),0) lr,coalesce(sum(stages&2>0),0) gd,coalesce(sum(stages&4>0),0) rc,coalesce(sum(stages&8>0),0) tr,coalesce(sum(stages&16>0),0) rt from lesson_state join students s on s.id=lesson_state.student_id where s.code=? group by lesson').bind(code)]);
+  D.prepare('select lesson,coalesce(sum(stages&1>0),0) lr,coalesce(sum(stages&2>0),0) gd,coalesce(sum(stages&4>0),0) rc,coalesce(sum(stages&8>0),0) tr,coalesce(sum(stages&16>0),0) rt,coalesce(sum((stages&15)=15),0) a4 from lesson_state join students s on s.id=lesson_state.student_id where s.code=? group by lesson').bind(code)]);
  const m=lesMetrics(r[0].results),p=new Map(r[1].results.map(x=>[x.lesson,x.p])),st=new Map(r[2].results.map(x=>[x.lesson,x]));
- return Lessons.LIST.map(l=>({id:l.id,pupils:p.get(l.id)||0,done:st.get(l.id)||{lr:0,gd:0,rc:0,tr:0,rt:0},m:m[l.id]||lesZero()}))}
+ return Lessons.LIST.map(l=>({id:l.id,pupils:p.get(l.id)||0,done:st.get(l.id)||{lr:0,gd:0,rc:0,tr:0,rt:0,a4:0},m:m[l.id]||lesZero()}))}
 
 // ---- Progress: daily streak, mastery and badges (all derived from the attempts table) ----
 const TL=[1,5,10,15,20,30,40,50,60,70]; // tier start levels (keep in step with TL in public/core.js)
@@ -168,10 +172,10 @@ async function progress(D,st){const id=st.id,now=Math.floor(Date.now()/1000),tod
   D.prepare('select count(*) n from duel_wins where student_id=?').bind(id),
   D.prepare("select count(*) n from attempts where student_id=? and mode='f' and ok=1").bind(id),
   D.prepare("select count(*) n,coalesce(max(case when n>=5 then score*1.0/n end),0) best from trial_runs where student_id=? and status='done'").bind(id),
-  D.prepare('select stages from lesson_state where student_id=?').bind(id)]);
- const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n,tr=r[9].results[0],ls=r[10].results.map(x=>x.stages|0);
+  D.prepare('select lesson,stages from lesson_state where student_id=?').bind(id)]);
+ const tot=r[0].results[0],last=r[1].results,days=r[2].results,mas=r[3].results[0].n,sp2=r[4].results[0].n,won=r[5].results.length>0,have=r[6].results,wins=r[7].results[0].n,fg=r[8].results[0].n,tr=r[9].results[0],ls=r[10].results.map(x=>x.stages|0),lsm=new Map(r[10].results.map(x=>[x.lesson,x.stages|0]));
  const s=streakOf(days,today),k=tot.k,l=lvl(st.xp);
- const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_enchanter:l>=20,rank_conjurer:l>=30,rank_warlock:l>=40,rank_magus:l>=50,rank_sage:l>=60,rank_archmage:l>=70,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50,trial_done:tr.n>=1,trial_ace:tr.best>=.9,lesson_learn:ls.some(x=>x&1),lesson_charm:ls.some(x=>x&4),lesson_seer:ls.some(x=>x&8),lesson_memory:ls.some(x=>x&16)};
+ const earned={first_spell:k>=1,hundred:k>=100,five_hundred:k>=500,flawless10:last.length==10&&last.every(x=>x.ok&&x.tries==1),streak3:s.n>=3,streak7:s.n>=7,streak30:s.n>=30,mastered10:mas>=10,mastered50:mas>=50,rank_novice:l>=5,rank_adept:l>=10,rank_sorcerer:l>=15,rank_enchanter:l>=20,rank_conjurer:l>=30,rank_warlock:l>=40,rank_magus:l>=50,rank_sage:l>=60,rank_archmage:l>=70,dungeon_clear:won,curse_breaker:sp2>=10,duel_winner:wins>=1,forge50:fg>=50,trial_done:tr.n>=1,trial_ace:tr.best>=.9,lesson_learn:ls.some(x=>x&1),lesson_charm:ls.some(x=>x&4),lesson_seer:ls.some(x=>x&8),lesson_memory:ls.some(x=>x&16),lesson_scholar:ls.filter(x=>x&8).length>=4,lesson_master:Lessons.LIST.length>=12&&Lessons.LIST.every(l=>((lsm.get(l.id)||0)&31)===31)};
  const owned=new Set(have.map(x=>x.badge)),fresh=Object.keys(earned).filter(b=>earned[b]&&!owned.has(b));
  if(fresh.length)await D.batch(fresh.map(b=>D.prepare('insert or ignore into badges(student_id,badge) values(?,?)').bind(id,b)));
  const t=days.find(x=>x.d==today);
@@ -263,14 +267,14 @@ if(St&&p==='/api/forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')
 if(St&&(p==='/api/lessons'||p.startsWith('/api/lesson/'))){
  const x0=await D.prepare('select xp from students where id=?').bind(a.id).first();if(!x0)return J({error:'Not found or not signed in'},404);
  if(!un(await cs(a.code),'l',x0.xp))return J({error:'locked'},403);
- if(p==='/api/lessons')return J({lessons:await lesData(D,a.id),retainDays:RETAIN_DAYS});
+ if(p==='/api/lessons')return J({lessons:await lesData(D,a.id),retainDays:RETAIN_DAYS,assigned:((await cs(a.code)).asg||[]).filter(x=>Lessons.get(x.l)).map(x=>({l:x.l,due:x.due|0})),now:Math.floor(Date.now()/1000)});
  const les=Lessons.get(String(b.lesson||''));if(!les&&p!=='/api/lesson/answer')return J({error:'Unknown lesson'},400); // answers name their round, not the lesson
  const now=Math.floor(Date.now()/1000),stRow=les?await D.prepare('select stages from lesson_state where student_id=? and lesson=?').bind(a.id,les.id).first():null,have=stRow?stRow.stages|0:0;
  const fresh=async()=>{const s=await D.prepare('select xp from students where id=?').bind(a.id).first(),pg=await progress(D,{id:a.id,xp:s.xp});return{xp:s.xp,modes:ms(await cs(a.code),s.xp),badges:pg.fresh,goal:pg.streak.today===GOAL?pg.streak.n:0}};
  // One logged card or guided answer. The browser reports it; kind 'word' is a guided word (with the number of hints used), the others are question cards.
  if(p==='/api/lesson/log'){const stage=String(b.stage||''),kind=String(b.kind||''),item=String(b.item||'').slice(0,40),ok=b.ok?1:0,hints=Math.max(0,Math.min(3,b.hints|0));let xp=0,tries=hints+1,ans=null,et=null;
   if(kind==='word'){if(stage!=='guided'||!(les.guided||[]).some(x=>x.w===item))return J({error:'Not a guided word'},400);ans=ok?null:clean(b.ans);et=ans?classify(item,ans):null;xp=ok?(hints?LES_XP.hint:LES_XP.ind):LES_XP.miss}
-  else{if(!LES_KINDS.has(kind)||!['learn','transfer','retain'].includes(stage))return J({error:'Bad card'},400);xp=ok?LES_XP.mc:0}
+  else{if(!LES_KINDS.has(kind)||!['learn','guided','transfer','retain'].includes(stage))return J({error:'Bad card'},400);xp=ok?LES_XP.mc:0}
   if(stage==='learn'||stage==='guided'){const day=await D.prepare("select count(*) n from lesson_attempts where student_id=? and lesson=? and ts>=? and stage in ('learn','guided')").bind(a.id,les.id,now-86400).first();if(day.n>=LES_DAY_CAP)xp=0}
   const q=[D.prepare('insert into lesson_attempts(student_id,lesson,stage,kind,item,ok,hints,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,les.id,stage,kind,item,ok,hints,ans,et)];
   if(kind==='word'){await ensureState(D,a.id);q.push(D.prepare('insert into attempts(student_id,mode,word,ok,tries,ms,xp,ans,etype) values(?,?,?,?,?,?,?,?,?)').bind(a.id,'les',item,ok,tries,b.ms|0,xp,ans,et),await stateStmt(D,a.id,item,!!ok,tries))} // right with hints rests 24h and is not promoted (see nextState)
@@ -285,13 +289,14 @@ if(St&&(p==='/api/lessons'||p.startsWith('/api/lesson/'))){
  if(p==='/api/lesson/start'){const stage=String(b.stage||'');if(!LES_N[stage])return J({error:'Bad stage'},400);
   const need={recall:LB.guided,transfer:LB.recall,retain:LB.recall|LB.transfer}[stage];if((have&need)!==need)return J({error:{recall:'Finish guided practice first.',transfer:'Pass the recall round first.',retain:'Pass the recall and transfer rounds first.'}[stage]},400);
   if(stage==='retain'){const l=await D.prepare("select max(ts) t from lesson_attempts where student_id=? and lesson=? and kind='word' and stage in ('recall','transfer','retain')").bind(a.id,les.id).first(),at=(l&&l.t|0)+RETAIN_DAYS*DAY;if(now<at)return J({error:'The memory check opens in '+Math.max(1,Math.ceil((at-now)/DAY))+' day(s). Memories need time to settle!',wait:at},400)}
-  await ensureState(D,a.id);const items=await lesItems(D,a.id,les,stage,les.bank?await bankFor(a.code):[]);if(items.length<3)return J({error:'Not enough words for this round yet.'},400);
+  await ensureState(D,a.id);const items=await lesItems(D,a.id,les,stage,les.bank?await bankFor(a.code):[],les.fix?await errBank(D,a.code):null);if(items.length<3)return J({error:'Not enough words for this round yet.'},400);
   await D.prepare("update lesson_runs set status='abandoned' where student_id=? and status='active'").bind(a.id).run();
   const r=await D.prepare('insert into lesson_runs(student_id,lesson,stage,cur,n) values(?,?,?,?,?)').bind(a.id,les.id,stage,JSON.stringify(items),items.length).run();
   return J({run:r.meta.last_row_id,stage,i:0,n:items.length,need:Math.min(LES_PASS[stage],items.length),q:lesPub(items[0])})}
  if(p==='/api/lesson/answer'){const r=await D.prepare("select * from lesson_runs where id=? and student_id=? and status='active'").bind(b.run|0,a.id).first();if(!r)return J({error:'No lesson round in progress'},400);
   const items=JSON.parse(r.cur),i=r.i|0;if((b.i|0)!==i)return J({sync:true,i,n:r.n,q:lesPub(items[i])}); // out of step (double tap, reload): hand back the current question
-  const it=items[i],ans=String(b.a||'').trim().toLowerCase(),ok=ans===it.w,last=i+1>=r.n,score=r.score+(ok?1:0),need=Math.min(LES_PASS[r.stage],r.n),wrong=ok?null:clean(ans),et=wrong?classify(it.w,wrong):null,gain=ok?LES_XP.ind:LES_XP.miss;
+  const nh=x=>x.replace(/-/g,''),it=items[i],ans=String(b.a||'').trim().toLowerCase(),ok=nh(ans)===nh(it.w), // hyphens are ignored: pre-pay and prepay are both accepted
+   last=i+1>=r.n,score=r.score+(ok?1:0),need=Math.min(LES_PASS[r.stage],r.n),wrong=ok?null:clean(ans),et=wrong?classify(it.w,wrong):null,gain=ok?LES_XP.ind:LES_XP.miss;
   const c=await D.prepare("update lesson_runs set i=?,score=?,status=? where id=? and i=? and status='active'").bind(i+1,score,last?'done':'active',r.id,i).run();if(!c.meta.changes)return J({sync:true,i:i+1,n:r.n}); // claim the step first, so a double tap cannot count twice
   await ensureState(D,a.id);
   await D.batch([D.prepare('insert into lesson_attempts(student_id,lesson,stage,kind,item,ok,hints,ans,etype) values(?,?,?,?,?,?,0,?,?)').bind(a.id,r.lesson,r.stage,'word',it.w,ok?1:0,wrong,et),
@@ -355,6 +360,9 @@ if(T){
   const mine=(await D.prepare('select id from lists where owner=?').bind(a.id).all()).results.map(x=>'c'+x.id),ids=[...new Set(b.lists||[])].filter(i=>LISTS[i]||mine.includes(i));
   await D.batch([D.prepare('delete from class_lists where code=?').bind(c),...ids.map(i=>D.prepare('insert into class_lists(code,list) values(?,?)').bind(c,i))]);return J({ok:1,lists:ids})}
  if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';set.forge=/^(auto|all|p[3-6])$/.test(b.forge||'')?b.forge:'auto';await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
+ if(p==='/api/teacher/lessonassign'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),les=Lessons.get(String(b.lesson||''));if(!les)return J({error:'Unknown lesson'},400);const set=await cs(c),now=Math.floor(Date.now()/1000);let asg=(set.asg||[]).filter(x=>x.l!==les.id);
+  if(b.on!==false){const due=Math.floor(+b.due||0);if(due&&due<now-86400)return J({error:'Choose a due date in the future.'},400);if(due>now+400*86400)return J({error:'Choose a due date within the next year.'},400);asg.push({l:les.id,due:due>0?due:0,ts:now})}
+  set.asg=asg.slice(-12);await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1,asg:set.asg})}
  // ---- Trials: teacher side ----
  const ownT=async id=>{const t=await D.prepare('select * from trials where id=?').bind(id|0).first();return t&&await own(t.code)?t:null};
  if(p==='/api/teacher/bank'){const c=(u.searchParams.get('code')||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);return J((await bankFor(c)).map(x=>({w:x.w,s:x.s,h:x.h})))}
@@ -436,7 +444,7 @@ if(T){
    if(s.w1>=10&&a1<.6)flags.push('Accuracy under 60%');if(s.w1>=8&&s.w0>=8&&a1<=a0-.15)flags.push('Accuracy dropping');
    return{id:s.id,name:s.name,xp:s.xp,lv:lvl(s.xp),n:s.n,acc:s.n?s.ok/s.n:null,last:s.last,w1:s.w1,a1,streak:streakOf(rows,today).n,days:Array.from({length:14},(_,i)=>cnt(today-13+i)),flags,goal:cnt(today)>=GOAL}});
   const t=r[0].results.reduce((o,s)=>({w1:o.w1+s.w1,k1:o.k1+s.w1ok,w0:o.w0+s.w0,k0:o.k0+s.w0ok}),{w1:0,k1:0,w0:0,k0:0});
-  return J({today,goal:GOAL,pupils,sum:{pupils:pupils.length,active:pupils.filter(x=>x.w1>0).length,words7:t.w1,acc1:t.w1?t.k1/t.w1:null,acc0:t.w0?t.k0/t.w0:null,goalToday:pupils.filter(x=>x.goal).length},errs:errMix(r[3].results),forge:forgeStats(r[4].results),lessons,words:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)}))})}
+  return J({today,goal:GOAL,pupils,sum:{pupils:pupils.length,active:pupils.filter(x=>x.w1>0).length,words7:t.w1,acc1:t.w1?t.k1/t.w1:null,acc0:t.w0?t.k0/t.w0:null,goalToday:pupils.filter(x=>x.goal).length},errs:errMix(r[3].results),forge:forgeStats(r[4].results),lessons,asg:((await cs(c)).asg||[]),words:r[2].results.map(w=>({w:w.word,n:w.n,miss:w.miss,wrong:(wr[w.word]||[]).slice(0,3)}))})}
  if(p==='/api/teacher/pupil'){const id=+u.searchParams.get('id'),s=await D.prepare('select s.id,s.name,s.xp,s.code from students s join classes c on c.code=s.code where s.id=? and c.teacher_id=?').bind(id,a.id).first();if(!s)return J({error:'Not found'},404);
   const now=Math.floor(Date.now()/1000),today=dayNo(now);await ensureState(D,id);const r=await D.batch([
    D.prepare("select count(*) n,coalesce(sum(ok),0) k,max(ts) last from attempts where student_id=? and mode!='spot1'").bind(id),
