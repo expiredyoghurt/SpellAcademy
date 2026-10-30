@@ -1,4 +1,4 @@
-name = "spellacademy"
+name = "spell-academy"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
 
@@ -18,3 +18,12 @@ class_name = "DuelRoom"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DuelRoom"]
+
+# Say It! (v4.4). Workers AI (Whisper) is used only when a class has voice recordings switched on and no Azure/Google key is set.
+[ai]
+binding = "AI"
+
+[vars]
+AZURE_REGION = "southeastasia"
+SPEECH_LANG = "en-GB"
+GOOGLE_LANG = "en-SG"
