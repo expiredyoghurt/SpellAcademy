@@ -28,7 +28,67 @@ export const RULES={
  'c-k':{n:'Add k after c',t:'A word ending in -c adds a k before -ed or -ing so the c stays hard.',ex:'panic + ed = panicked',f:(l,r)=>l+'k'+r},
  'prefix-meet':{n:'Keep both letters at the join',t:'A prefix never loses a letter. When the last letter of the prefix meets the same letter, you get a double.',ex:'mis + spell = misspell',f:(l,r)=>pre(l)+r},
  'prefix-in':{n:'in- changes to il-, im-, ir-',t:'The prefix in- becomes il- before l, ir- before r, and im- before m, p or b.',ex:'in + legal = illegal',f:(l,r)=>(/^l/.test(r)?'il':/^r/.test(r)?'ir':/^[mpb]/.test(r)?'im':'in')+r}};
-const DATA=`play+ing=playing|add|3|The children are {w} in the park.
+const DATA=`cat+s=cats|add|1|The two {w} are asleep.
+dog+s=dogs|add|1|Two {w} ran in the park.
+hand+s=hands|add|1|Please wash your {w}.
+book+s=books|add|1|We read many {w}.
+tree+s=trees|add|1|The {w} are tall.
+walk+ing=walking|add|1|We are {w} to school.
+look+ed=looked|add|1|She {w} out of the window.
+kick+ed=kicked|add|1|He {w} the ball.
+want+ed=wanted|add|1|I {w} a drink.
+call+ed=called|add|1|Mum {w} my name.
+pick+ed=picked|add|1|We {w} some flowers.
+talk+ed=talked|add|1|We {w} on the phone.
+fast+er=faster|add|1|A car is {w} than a bike.
+long+er=longer|add|1|The ruler is {w} than the pencil.
+cold+er=colder|add|1|Ice is {w} than water.
+jump+s=jumps|add|1|The frog {w} high.
+play+s=plays|add|1|She {w} with her toys.
+un-+kind=unkind|add|1|It is {w} to shout.
+un-+lock=unlock|add|1|Please {w} the door.
+re-+play=replay|add|1|Let us {w} the game.
+take+ing=taking|drop-e|2|She is {w} a photo.
+ride+ing=riding|drop-e|2|He is {w} his bike.
+like+ed=liked|drop-e|2|I {w} the film.
+smile+ed=smiled|drop-e|2|He {w} at me.
+dance+ing=dancing|drop-e|2|They are {w} on the stage.
+share+ed=shared|drop-e|2|We {w} our snacks.
+hide+ing=hiding|drop-e|2|The cat is {w} in a box.
+wave+ed=waved|drop-e|2|She {w} goodbye.
+live+ed=lived|drop-e|2|A king {w} in the castle.
+move+ed=moved|drop-e|2|We {w} the table.
+use+ing=using|drop-e|2|I am {w} a pencil.
+nice+est=nicest|drop-e|2|She is the {w} girl in class.
+close+ing=closing|drop-e|2|The shop is {w} now.
+run+ing=running|double|2|The boys are {w} fast.
+get+ing=getting|double|2|We are {w} on the bus.
+hug+ed=hugged|double|2|He {w} his sister.
+clap+ed=clapped|double|2|Everyone {w} loudly.
+stop+ed=stopped|double|2|The bus {w} at the light.
+jog+ing=jogging|double|2|Grandpa is {w} today.
+drop+ed=dropped|double|2|She {w} her pencil.
+shop+ing=shopping|double|2|Mum is {w} at the market.
+nod+ed=nodded|double|2|He {w} his head.
+cry+ed=cried|y-to-i|2|The baby {w} all night.
+try+ed=tried|y-to-i|2|I {w} my best.
+fly+es=flies|y-to-i|2|A bird {w} over the roof.
+puppy+es=puppies|y-to-i|2|The {w} are playing.
+lady+es=ladies|y-to-i|2|The {w} waited for the bus.
+funny+er=funnier|y-to-i|2|This joke is {w} than that one.
+fox+es=foxes|plural-es|2|Two {w} ran into the woods.
+kiss+es=kisses|plural-es|2|The baby blows {w}.
+brush+es=brushes|plural-es|2|We washed the paint {w}.
+bench+es=benches|plural-es|2|The park has three {w}.
+dress+es=dresses|plural-es|2|She has two new {w}.
+stay+ed=stayed|y-keep|2|We {w} at home.
+enjoy+ing=enjoying|y-keep|2|They are {w} the party.
+buy+ing=buying|y-keep|2|Dad is {w} some bread.
+hope+less=hopeless|keep-e|2|It felt {w} at first.
+use+less=useless|keep-e|2|A broken pen is {w}.
+love+ly=lovely|keep-e|2|What a {w} garden!
+home+less=homeless|keep-e|2|The kind man helped the {w} cat.
+play+ing=playing|add|3|The children are {w} in the park.
 help+ful=helpful|add|3|She is a very {w} girl.
 kind+ness=kindness|add|3|Thank you for your {w}.
 jump+ed=jumped|add|3|The frog {w} into the pond.
@@ -216,3 +276,29 @@ export const FORGE=DATA.split('\n').map(l=>{const[eq,rule,lv,s]=l.split('|'),[lr
 export const forgeBy=new Map(FORGE.map(x=>[x.w,x]));
 // what the pupil needs to see (the answer is included because the server also needs it; the client never sees it before answering for "fix" items except as the rule card)
 export const forgeRules=()=>Object.fromEntries(Object.entries(RULES).map(([k,v])=>[k,{n:v.n,t:v.t,ex:v.ex}]));
+
+// Lower primary (v4.3): the same rules in plain words. Same keys, so the items and marking do not change. A key missing here falls back to the Upper text.
+const LOWR={
+ add:{n:'Just stick them together',t:'Nothing changes. Stick the two pieces together.',ex:'play + ing = playing'},
+ 'drop-e':{n:'The quiet e waves goodbye',t:'Take off the quiet e before -ing, -ed, -er, -est, -able and -ion.',ex:'hope + ing = hoping'},
+ 'keep-e':{n:'The quiet e stays',t:'Keep the quiet e before -ful, -ly, -ment, -ness and -less.',ex:'hope + ful = hopeful'},
+ 'keep-e-x':{n:'Quiet e rule-breakers',t:'A few words lose the e even before these endings. Learn them by heart.',ex:'true + ly = truly'},
+ 'soft-ce':{n:'Soft c and g keep the e',t:'In words like notice and courage, the e keeps the c or g soft. So keep it before -able and -ous.',ex:'notice + able = noticeable'},
+ 'ee-keep':{n:'Words ending in -ee or -ye',t:'Keep the e before -ing. Words that end in -ie are different (see the next rule).',ex:'see + ing = seeing'},
+ 'ie-y':{n:'ie turns into y',t:'Before -ing, change ie to y.',ex:'die + ing = dying'},
+ double:{n:'Give the last letter a twin',t:'One beat, one vowel, one letter at the end? The last letter gets a twin before -ing, -ed or -er.',ex:'stop + ing = stopping'},
+ double2:{n:'A twin when the end is said strongly',t:'In a longer word, give the last letter a twin only if the last beat is said the loudest: be-GIN.',ex:'begin + ing = beginning'},
+ 'no-double':{n:'No twin',t:'No twin if the word ends in w, x or y, or in two letters, or has two vowels before the last letter. Or if the last beat is said softly: VIS-it.',ex:'visit + ing = visiting'},
+ 'y-to-i':{n:'Change y to i',t:'A y after a plain letter turns into i before an ending. Not before -ing.',ex:'happy + ness = happiness'},
+ 'y-keep':{n:'Keep the y',t:'The y stays before -ing, and after a, e, i, o, u.',ex:'carry + ing = carrying'},
+ 'plural-es':{n:'Add -es',t:'Add -es to words ending in s, x, z, ch or sh. You can hear the extra beat.',ex:'box + es = boxes'},
+ 'f-to-v':{n:'f or fe turns into ves',t:'Many words ending in f or fe change to -ves when there is more than one.',ex:'leaf + s = leaves'},
+ 'f-keep':{n:'Some f words just add -s',t:'A few words ending in f or ff do not change. They just add -s. Learn them by heart.',ex:'roof + s = roofs'},
+ 'o-es':{n:'Words ending in -o',t:'Many words add -es (potatoes, heroes). Some just add -s (photos, pianos, zoos). Learn them by heart.',ex:'potato + es = potatoes'},
+ 'le-ly':{n:'-le becomes -ly',t:'When a word ends in -le, take off the le and add ly.',ex:'gentle + ly = gently'},
+ 'ly-ful-al':{n:'Keep both l letters',t:'Keep both l letters when you add -ly to a word ending in -ful or -al.',ex:'careful + ly = carefully'},
+ 'ic-ally':{n:'-ic + ly = -ically',t:'Words ending in -ic add -ally, not just -ly.',ex:'basic + ly = basically'},
+ 'c-k':{n:'Add a k after c',t:'A word ending in c adds a k before -ed or -ing. This keeps the c hard.',ex:'panic + ed = panicked'},
+ 'prefix-meet':{n:'Keep both letters where the pieces meet',t:'The word-start never loses a letter. If the same letter meets the same letter, write both.',ex:'mis + spell = misspell'},
+ 'prefix-in':{n:'in- changes to il-, im-, ir-',t:'in- turns into il- before l, ir- before r, and im- before m, p or b.',ex:'in + legal = illegal'}};
+export const forgeRulesLow=()=>Object.fromEntries(Object.entries(RULES).map(([k,v])=>[k,{n:(LOWR[k]||v).n,t:(LOWR[k]||v).t,ex:(LOWR[k]||v).ex}]));

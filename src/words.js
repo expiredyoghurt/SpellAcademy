@@ -200,6 +200,295 @@ bread|I eat {w} for breakfast.|"ea" says /e/: br-ea-d.
 sleep|I {w} at night.|two e's: sl-ee-p.
 eat|We {w} dinner together.|"ea" says /ee/: e-a-t.
 good|I am a {w} helper.|two o's: g-oo-d.`},
+'dolch-pre':{n:'Dolch: Pre-Primer',w:`and|Salt {w} pepper.|a-n-d: three simple sounds.
+big|An elephant is {w}.|b-i-g: it rhymes with pig.
+can|I {w} swim.|c-a-n: it rhymes with fan.
+for|This gift is {w} you.|Sight word: f-o-r. Say it, then look at every letter.
+net|He catches fish with a {w}.|n-e-t: it rhymes with pet.
+not|I am {w} tired.|Sight word: n-o-t. Say it, then look at every letter.
+one|I have {w} sister.|Sight word: o-n-e. Say it, then look at every letter.
+red|The apple is {w}.|r-e-d: it rhymes with bed.
+run|I can {w} fast.|r-u-n: it rhymes with sun.
+see|I can {w} a bird.|Sight word: s-e-e. Say it, then look at every letter.
+the|Please close {w} door.|a very common word: t-h-e.
+two|We saw {w} ducks.|Sight word: t-w-o. Say it, then look at every letter.
+away|The bird flew {w}.|a + way: a-w-ay.
+blue|The sky is {w}.|"ue" says /oo/: bl-ue.
+come|Please {w} here.|silent e: c-o-m-e.
+down|The ball rolled {w} the hill.|Sight word: d-o-w-n. Say it, then look at every letter.
+find|Can you {w} my pencil?|Sight word: f-i-n-d. Say it, then look at every letter.
+help|Can you {w} me?|Sight word: h-e-l-p. Say it, then look at every letter.
+here|Put the box {w}.|Sight word: h-e-r-e. Say it, then look at every letter.
+jump|The kids {w} high.|it ends with mp: j-u-m-p.
+look|Please {w} at the board.|two o's: l-oo-k.
+make|Let us {w} a card.|Sight word: m-a-k-e. Say it, then look at every letter.
+play|We {w} in the park.|"ay" is at the end: pl-ay.
+said|"Hello," {w} Mum.|a tricky word: it sounds like "sed" but is spelled s-ai-d.
+that|I like {w} song.|Sight word: t-h-a-t. Say it, then look at every letter.
+this|{w} is my book.|Sight word: t-h-i-s. Say it, then look at every letter.
+they|{w} are my friends.|Sight word: t-h-e-y. Say it, then look at every letter.
+them|I gave it to {w}.|Sight word: t-h-e-m. Say it, then look at every letter.
+then|We ate, and {w} we slept.|Sight word: t-h-e-n. Say it, then look at every letter.
+what|{w} is your name?|Sight word: w-h-a-t. Say it, then look at every letter.
+when|{w} is your birthday?|Sight word: w-h-e-n. Say it, then look at every letter.
+with|Come {w} me.|Sight word: w-i-t-h. Say it, then look at every letter.
+funny|The clown is very {w}.|Sight word: f-u-n-n-y. Say it, then look at every letter.
+little|The baby is {w}.|lit-tle: two t's.
+where|I know {w} you live.|wh-ere: "here" is inside.
+yellow|The banana is {w}.|two l's: yel-low.`},
+'dolch-primer':{n:'Dolch: Primer',w:`all|We are {w} here.|Sight word: a-l-l. Say it, then look at every letter.
+ate|He {w} his lunch.|Sight word: a-t-e. Say it, then look at every letter.
+but|I like tea {w} not milk.|Sight word: b-u-t. Say it, then look at every letter.
+did|I {w} my homework.|Sight word: d-i-d. Say it, then look at every letter.
+get|Please {w} your book.|Sight word: g-e-t. Say it, then look at every letter.
+new|I have a {w} bag.|Sight word: n-e-w. Say it, then look at every letter.
+now|Come here {w}.|Sight word: n-o-w. Say it, then look at every letter.
+our|This is {w} school.|Sight word: o-u-r. Say it, then look at every letter.
+out|The cat ran {w}.|Sight word: o-u-t. Say it, then look at every letter.
+ran|The boy {w} fast.|Sight word: r-a-n. Say it, then look at every letter.
+saw|I {w} a bird in the tree.|Sight word: s-a-w. Say it, then look at every letter.
+say|What did you {w}?|Sight word: s-a-y. Say it, then look at every letter.
+she|Mum said {w} will come soon.|"sh" then e: s-h-e.
+who|{w} is at the door?|Sight word: w-h-o. Say it, then look at every letter.
+yes|{w}, I can swim.|Sight word: y-e-s. Say it, then look at every letter.
+came|She {w} to my party.|Sight word: c-a-m-e. Say it, then look at every letter.
+four|The cat has {w} legs.|Sight word: f-o-u-r. Say it, then look at every letter.
+good|I am a {w} helper.|two o's: g-oo-d.
+have|I {w} a red ball.|Sight word: h-a-v-e. Say it, then look at every letter.
+into|He jumped {w} the pool.|Sight word: i-n-t-o. Say it, then look at every letter.
+like|I {w} ice cream.|Sight word: l-i-k-e. Say it, then look at every letter.
+must|We {w} be kind.|Sight word: m-u-s-t. Say it, then look at every letter.
+please|Say thank you and {w}.|"ea" says /ee/: pl-ea-se.
+pretty|The dress is {w}.|pret-ty: two t's.
+ride|I {w} my bike to the park.|Sight word: r-i-d-e. Say it, then look at every letter.
+soon|We will eat {w}.|Sight word: s-o-o-n. Say it, then look at every letter.
+that|I like {w} song.|Sight word: t-h-a-t. Say it, then look at every letter.
+them|I gave it to {w}.|Sight word: t-h-e-m. Say it, then look at every letter.
+then|We ate, and {w} we slept.|Sight word: t-h-e-n. Say it, then look at every letter.
+there|The cat is over {w}.|t-h-e-r-e: "here" is inside.
+they|{w} are my friends.|Sight word: t-h-e-y. Say it, then look at every letter.
+this|{w} is my book.|Sight word: t-h-i-s. Say it, then look at every letter.
+under|The cat sleeps {w} the bed.|un + der: u-n-d-e-r.
+want|I {w} a drink.|Sight word: w-a-n-t. Say it, then look at every letter.
+well|She sings {w}.|Sight word: w-e-l-l. Say it, then look at every letter.
+went|We {w} to the zoo.|Sight word: w-e-n-t. Say it, then look at every letter.
+what|{w} is your name?|Sight word: w-h-a-t. Say it, then look at every letter.
+white|The clouds are {w}.|it starts with wh: wh-i-t-e.
+will|I {w} help you.|Sight word: w-i-l-l. Say it, then look at every letter.
+with|Come {w} me.|Sight word: w-i-t-h. Say it, then look at every letter.
+black|The cat is {w}.|"ck" at the end: bla-ck.
+brown|The dog has {w} fur.|Sight word: b-r-o-w-n. Say it, then look at every letter.`},
+'dolch-1':{n:'Dolch: 1st Grade',w:`any|Do you have {w} pens?|Sight word: a-n-y. Say it, then look at every letter.
+ask|You can {w} me.|Sight word: a-s-k. Say it, then look at every letter.
+fly|Birds can {w}.|Sight word: f-l-y. Say it, then look at every letter.
+had|She {w} a cold drink.|Sight word: h-a-d. Say it, then look at every letter.
+has|He {w} a new hat.|Sight word: h-a-s. Say it, then look at every letter.
+her|I like {w} dress.|Sight word: h-e-r. Say it, then look at every letter.
+him|Give the ball to {w}.|Sight word: h-i-m. Say it, then look at every letter.
+his|That is {w} bag.|Sight word: h-i-s. Say it, then look at every letter.
+how|{w} old are you?|Sight word: h-o-w. Say it, then look at every letter.
+let|{w} me help you.|Sight word: l-e-t. Say it, then look at every letter.
+may|{w} I come in?|Sight word: m-a-y. Say it, then look at every letter.
+old|My dog is {w}.|Sight word: o-l-d. Say it, then look at every letter.
+put|{w} your bag on the desk.|Sight word: p-u-t. Say it, then look at every letter.
+again|Please say it {w}.|a + gain: a-g-ai-n.
+after|We play {w} school.|af + ter: a-f-t-e-r.
+could|I {w} help you.|tricky: c-ou-l-d, like would and should.
+every|I eat fruit {w} day.|ev-ery: e-v-e-r-y.
+from|This gift is {w} Mum.|Sight word: f-r-o-m. Say it, then look at every letter.
+give|Please {w} me a pencil.|silent e: g-i-v-e.
+going|We are {w} home.|Sight word: g-o-i-n-g. Say it, then look at every letter.
+just|I {w} got here.|Sight word: j-u-s-t. Say it, then look at every letter.
+know|I {w} the answer.|silent k: k-n-o-w.
+live|Fish {w} in water.|Sight word: l-i-v-e. Say it, then look at every letter.
+once|I went there {w}.|Sight word: o-n-c-e. Say it, then look at every letter.
+open|Please {w} the door.|Sight word: o-p-e-n. Say it, then look at every letter.
+over|The cow jumped {w} the moon.|Sight word: o-v-e-r. Say it, then look at every letter.
+some|I want {w} water.|Sight word: s-o-m-e. Say it, then look at every letter.
+stop|Please {w} the bus.|Sight word: s-t-o-p. Say it, then look at every letter.
+take|Please {w} a seat.|Sight word: t-a-k-e. Say it, then look at every letter.
+thank|I will {w} Mum for the gift.|th-a-n-k.
+them|I gave it to {w}.|Sight word: t-h-e-m. Say it, then look at every letter.
+then|We ate, and {w} we slept.|Sight word: t-h-e-n. Say it, then look at every letter.
+think|I {w} it is correct.|it ends with nk: th-i-n-k.
+walk|I {w} to school.|Silent l: w-a-l-k.
+were|They {w} happy.|Sight word: w-e-r-e. Say it, then look at every letter.`},
+'dolch-2':{n:'Dolch: 2nd Grade',w:`buy|I want to {w} a pen.|Sight word: b-u-y. Say it, then look at every letter.
+off|Turn {w} the light.|Sight word: o-f-f. Say it, then look at every letter.
+sit|Please {w} on the chair.|s-i-t: it rhymes with hit.
+use|I {w} a pencil to write.|Sight word: u-s-e. Say it, then look at every letter.
+why|{w} are you sad?|Sight word: w-h-y. Say it, then look at every letter.
+been|I have {w} to the zoo.|Sight word: b-e-e-n. Say it, then look at every letter.
+best|She is my {w} friend.|Sight word: b-e-s-t. Say it, then look at every letter.
+both|{w} of us like cake.|Sight word: b-o-t-h. Say it, then look at every letter.
+call|Please {w} me later.|Sight word: c-a-l-l. Say it, then look at every letter.
+cold|The ice is {w}.|"old" like in gold: c-old.
+does|{w} she like fish?|Sight word: d-o-e-s. Say it, then look at every letter.
+don't|I {w} like loud noise.|Sight word: d-o-n-'-t. Say it, then look at every letter.
+fast|The cheetah runs {w}.|Sight word: f-a-s-t. Say it, then look at every letter.
+first|I came {w} in the race.|"ir" says /er/: f-ir-s-t.
+five|I am {w} years old.|Sight word: f-i-v-e. Say it, then look at every letter.
+found|I {w} my pencil.|Sight word: f-o-u-n-d. Say it, then look at every letter.
+gave|He {w} me a card.|Sight word: g-a-v-e. Say it, then look at every letter.
+goes|She {w} to school by bus.|Sight word: g-o-e-s. Say it, then look at every letter.
+green|The grass is {w}.|two e's in the middle: g-r-ee-n.
+its|The bird flapped {w} wings.|Sight word: i-t-s. Say it, then look at every letter.
+made|We {w} a cake.|Sight word: m-a-d-e. Say it, then look at every letter.
+many|There are {w} birds.|m-a-n-y: a says /e/.
+pull|Please {w} the rope.|Sight word: p-u-l-l. Say it, then look at every letter.
+read|I {w} a book every night.|Sight word: r-e-a-d. Say it, then look at every letter.
+right|Raise your {w} hand.|Sight word: r-i-g-h-t. Say it, then look at every letter.
+sing|They {w} songs in class.|s-i-ng: it ends with ng.
+tell|Please {w} me a story.|Sight word: t-e-l-l. Say it, then look at every letter.
+their|The boys ate {w} lunch.|tricky: t-h-e-i-r.
+these|{w} are my shoes.|Sight word: t-h-e-s-e. Say it, then look at every letter.
+those|{w} flowers are pretty.|Sight word: t-h-o-s-e. Say it, then look at every letter.
+upon|Once {w} a time, there was a king.|Sight word: u-p-o-n. Say it, then look at every letter.
+very|It is {w} hot.|v-e-r-y: it ends with y.
+wash|Please {w} your hands.|w-a-sh: a says o.
+work|We {w} hard in class.|Sight word: w-o-r-k. Say it, then look at every letter.
+your|Is this {w} bag?|Sight word: y-o-u-r. Say it, then look at every letter.
+always|I {w} brush my teeth.|one l, then ways: al-ways.
+around|We ran {w} the field.|Sight word: a-r-o-u-n-d. Say it, then look at every letter.
+because|I stayed home {w} it was raining.|Big Elephants Can Always Understand Small Elephants.
+before|Wash your hands {w} eating.|be + fore: b-e-f-or-e.
+sleep|I {w} at night.|two e's: sl-ee-p.
+would|I {w} like some water.|tricky: w-ou-l-d, like could and should.
+write|I {w} with a pencil.|Sight word: w-r-i-t-e. Say it, then look at every letter.`},
+'dolch-3':{n:'Dolch: 3rd Grade',w:`cut|Be careful when you {w} paper.|Sight word: c-u-t. Say it, then look at every letter.
+far|The shop is not {w}.|Sight word: f-a-r. Say it, then look at every letter.
+got|I {w} a new bike.|Sight word: g-o-t. Say it, then look at every letter.
+hot|The soup is {w}.|Sight word: h-o-t. Say it, then look at every letter.
+six|I have {w} stickers.|Sight word: s-i-x. Say it, then look at every letter.
+ten|I can count to {w}.|Sight word: t-e-n. Say it, then look at every letter.
+try|Please {w} again.|Sight word: t-r-y. Say it, then look at every letter.
+best|She is my {w} friend.|Sight word: b-e-s-t. Say it, then look at every letter.
+bring|Please {w} your book.|Sight word: b-r-i-n-g. Say it, then look at every letter.
+carry|Can you {w} my bag?|Sight word: c-a-r-r-y. Say it, then look at every letter.
+clean|Please keep the room {w}.|"ea" says /ee/: cl-ea-n.
+done|I am {w} with my work.|Sight word: d-o-n-e. Say it, then look at every letter.
+draw|I like to {w} cats.|Sight word: d-r-a-w. Say it, then look at every letter.
+drink|Please {w} a glass of water.|d-r-i-nk: it ends with nk.
+eight|There are {w} eggs.|Sight word: e-i-g-h-t. Say it, then look at every letter.
+fall|Leaves {w} from the trees.|Sight word: f-a-l-l. Say it, then look at every letter.
+full|The cup is {w}.|Sight word: f-u-l-l. Say it, then look at every letter.
+grow|Plants {w} in the sun.|Sight word: g-r-o-w. Say it, then look at every letter.
+hold|Please {w} my hand.|Sight word: h-o-l-d. Say it, then look at every letter.
+hurt|I {w} my knee.|Sight word: h-u-r-t. Say it, then look at every letter.
+keep|Please {w} it safe.|Sight word: k-e-e-p. Say it, then look at every letter.
+kind|Be {w} to your classmates.|k-i-n-d: it rhymes with find.
+long|The snake is {w}.|Sight word: l-o-n-g. Say it, then look at every letter.
+much|Thank you very {w}.|Sight word: m-u-c-h. Say it, then look at every letter.
+never|I {w} give up.|Sight word: n-e-v-e-r. Say it, then look at every letter.
+only|I have {w} one pencil.|on + ly: o-n-l-y.
+open|Please {w} the door.|Sight word: o-p-e-n. Say it, then look at every letter.
+pick|Please {w} a card.|Sight word: p-i-c-k. Say it, then look at every letter.
+show|Please {w} me your picture.|Sight word: s-h-o-w. Say it, then look at every letter.
+small|An ant is {w}.|Sight word: s-m-a-l-l. Say it, then look at every letter.
+start|Let us {w} the game.|Sight word: s-t-a-r-t. Say it, then look at every letter.
+today|It is sunny {w}.|to + day: t-o-d-a-y.
+warm|The sun is {w}.|Sight word: w-a-r-m. Say it, then look at every letter.
+about|We talked {w} the trip.|a + bout: a-b-ou-t.
+better|I feel {w} today.|Sight word: b-e-t-t-e-r. Say it, then look at every letter.
+laugh|The joke made us {w}.|tricky: l-augh says /laf/.
+myself|I can dress {w}.|Sight word: m-y-s-e-l-f. Say it, then look at every letter.
+seven|There are {w} days in a week.|Sight word: s-e-v-e-n. Say it, then look at every letter.
+shall|{w} we play a game?|Sight word: s-h-a-l-l. Say it, then look at every letter.
+together|We play {w}.|Sight word: t-o-g-e-t-h-e-r. Say it, then look at every letter.`},
+'dolch-nouns':{n:'Dolch: Nouns',w:`bed|I sleep in my {w}.|b-e-d: it starts and ends with the tall letters b and d.
+box|The toy is in the {w}.|it ends with x: b-o-x.
+boy|The {w} runs fast.|Sight word: b-o-y. Say it, then look at every letter.
+car|Dad drives the {w}.|"ar" says /ar/: c-ar.
+cat|The {w} sat on the mat.|c-a-t: say each sound as you write it.
+cow|The {w} gives us milk.|Sight word: c-o-w. Say it, then look at every letter.
+day|It is a sunny {w}.|Sight word: d-a-y. Say it, then look at every letter.
+dog|My {w} likes to run.|d-o-g: it starts with d, like "dad".
+egg|I ate an {w} for breakfast.|e-g-g: it has two g's.
+eye|I close one {w}.|e at both ends: e-y-e.
+leg|I hurt my {w}.|l-e-g: it rhymes with peg.
+man|The {w} is tall.|Sight word: m-a-n. Say it, then look at every letter.
+men|The {w} are working.|Sight word: m-e-n. Say it, then look at every letter.
+pig|The {w} rolls in the mud.|p-i-g: it rhymes with big.
+sun|The {w} is bright today.|s-u-n: it rhymes with fun.
+top|Climb to the {w}.|Sight word: t-o-p. Say it, then look at every letter.
+toy|He plays with a {w}.|"oy" at the end: t-oy.
+way|Which {w} is home?|Sight word: w-a-y. Say it, then look at every letter.
+back|Scratch my {w}.|Sight word: b-a-c-k. Say it, then look at every letter.
+ball|Kick the {w}.|"all" says /awl/: b-all.
+bear|A {w} likes honey.|"ear" says /air/: b-ear.
+bell|The school {w} rang.|Sight word: b-e-l-l. Say it, then look at every letter.
+bird|A {w} can fly.|"ir" says /er/: b-ir-d.
+boat|A {w} floats on water.|"oa" says /oh/: b-oa-t.
+cake|She baked a {w}.|silent e makes a say its name: c-a-k-e.
+coat|Wear your {w} in the rain.|Sight word: c-o-a-t. Say it, then look at every letter.
+corn|We ate {w} for lunch.|Sight word: c-o-r-n. Say it, then look at every letter.
+doll|She hugs her {w}.|two l's: d-o-ll.
+door|Please open the {w}.|two o's: d-oo-r.
+duck|The {w} swims in the pond.|"ck" comes at the end: du-ck.
+farm|The cow lives on a {w}.|"ar" says /ar/: f-ar-m.
+feet|My {w} are wet.|Sight word: f-e-e-t. Say it, then look at every letter.
+fire|The {w} is hot.|Sight word: f-i-r-e. Say it, then look at every letter.
+fish|A {w} swims in the sea.|"sh" makes the /sh/ sound: fi-sh.
+hand|I wave my {w}.|it ends with nd: h-a-n-d.
+head|I wear a cap on my {w}.|"ea" says /e/: h-ea-d.
+hill|We ran up the {w}.|Sight word: h-i-l-l. Say it, then look at every letter.
+home|I go {w} after school.|silent e makes o say its name: h-o-m-e.
+milk|I drink {w} every morning.|it ends with lk: m-i-l-k.
+name|My {w} is Mei.|Sight word: n-a-m-e. Say it, then look at every letter.
+nest|The bird sat in the {w}.|Sight word: n-e-s-t. Say it, then look at every letter.
+night|The stars shine at {w}.|"igh" says /eye/: n-igh-t.
+rain|The {w} falls from the clouds.|"ai" says /ay/: r-ai-n.
+ring|She wears a {w}.|Sight word: r-i-n-g. Say it, then look at every letter.
+seed|I planted a {w}.|Sight word: s-e-e-d. Say it, then look at every letter.
+shoe|I lost my {w}.|Sight word: s-h-o-e. Say it, then look at every letter.
+snow|It does not {w} in Singapore.|s-n-ow: ow says oh.
+song|We sang a {w}.|Sight word: s-o-n-g. Say it, then look at every letter.
+time|What {w} is it?|Sight word: t-i-m-e. Say it, then look at every letter.
+tree|A bird sits in the {w}.|two e's: t-r-ee.
+wind|The {w} is strong.|Sight word: w-i-n-d. Say it, then look at every letter.
+wood|The table is made of {w}.|Sight word: w-o-o-d. Say it, then look at every letter.
+apple|I eat an {w} every day.|two p's in the middle: a-pp-le.
+baby|The {w} is sleeping.|Sight word: b-a-b-y. Say it, then look at every letter.
+birthday|Today is my {w}.|Sight word: b-i-r-t-h-d-a-y. Say it, then look at every letter.
+bread|I eat {w} for breakfast.|"ea" says /e/: br-ea-d.
+brother|My {w} plays football.|broth + er: b-r-o-th-e-r.
+chair|Sit on the {w}.|"ch" then "air": ch-air.
+chicken|The {w} lays eggs.|chick + en: c-h-i-ck-e-n.
+children|The {w} play in the park.|child + ren: c-h-i-l-d-r-e-n.
+Christmas|We sing songs at {w}.|Sight word: C-h-r-i-s-t-m-a-s. Say it, then look at every letter.
+farmer|The {w} feeds the hens.|Sight word: f-a-r-m-e-r. Say it, then look at every letter.
+father|My {w} reads to me.|fath + er: f-a-th-e-r.
+floor|Sit on the {w}.|Sight word: f-l-o-o-r. Say it, then look at every letter.
+flower|The {w} smells nice.|flow + er.
+garden|Flowers grow in the {w}.|gar-den: "ar" then den.
+girl|The {w} is reading.|Sight word: g-i-r-l. Say it, then look at every letter.
+goodbye|Say {w} to Gran.|Sight word: g-o-o-d-b-y-e. Say it, then look at every letter.
+grass|The cows eat green {w}.|g-r-a-ss: double s at the end.
+ground|The ball fell on the {w}.|Sight word: g-r-o-u-n-d. Say it, then look at every letter.
+horse|A {w} runs very fast.|silent e: h-or-s-e.
+house|We live in a big {w}.|"ou" says /ow/ and a silent e: h-ou-s-e.
+kitty|The {w} drank some milk.|Sight word: k-i-t-t-y. Say it, then look at every letter.
+letter|I wrote a {w} to Gran.|Sight word: l-e-t-t-e-r. Say it, then look at every letter.
+money|I save my {w}.|mon-ey: it ends with -ey.
+morning|I wake up in the {w}.|morn + ing: m-or-n-i-n-g.
+mother|My {w} loves me.|moth + er: m-o-th-e-r.
+paper|I draw on {w}.|pa-per: p-a-p-e-r.
+party|We had a {w} for my birthday.|Sight word: p-a-r-t-y. Say it, then look at every letter.
+picture|She drew a lovely {w}.|pic + ture: it ends with ture.
+rabbit|The {w} hops away.|two b's: ra-bb-it.
+robin|A {w} sang in the tree.|Sight word: r-o-b-i-n. Say it, then look at every letter.
+Santa Claus|Children wait for {w} on Christmas Eve.|Sight word: S-a-n-t-a- -C-l-a-u-s. Say it, then look at every letter.
+school|I walk to {w} every day.|"ch" says /k/ here: s-ch-oo-l.
+sheep|The {w} has soft wool.|two e's: sh-ee-p.
+sister|My {w} is older than me.|sis + ter: s-i-s-t-e-r.
+squirrel|The {w} ate a nut.|Sight word: s-q-u-i-r-r-e-l. Say it, then look at every letter.
+stick|I found a {w}.|Sight word: s-t-i-c-k. Say it, then look at every letter.
+street|We live on this {w}.|Sight word: s-t-r-e-e-t. Say it, then look at every letter.
+table|The cups are on the {w}.|it ends with -ble: ta-ble.
+thing|What is that {w}?|Sight word: t-h-i-n-g. Say it, then look at every letter.
+watch|We {w} cartoons on weekends.|w-a-tch: tch at the end.
+water|I drink {w} when I am thirsty.|w-a-t-er: it ends with er.
+window|Please open the {w}.|win-dow: it ends with -ow.`},
 p2:{n:'Primary 2',w:`about|We talked {w} the trip.|a + bout: a-b-ou-t.
 after|We play {w} school.|af + ter: a-f-t-e-r.
 again|Please say it {w}.|a + gain: a-g-ai-n.
@@ -701,3 +990,5 @@ unanimous|The vote was {w}.|u-nan-i-mous: u-n-a-n-i-m-o-u-s.
 vaccine|The nurse gave a {w}.|vac-cine: two c's.
 vocabulary|Reading builds {w}.|vo-cab-u-lar-y: it ends with -ary.`},
 };
+// Built-in lists that join a level whenever that level is ticked for a class (same idea as a teacher's tagged lists). All the Dolch lists are tagged to P1.
+export const TAGS={'dolch-pre':'p1','dolch-primer':'p1','dolch-1':'p1','dolch-2':'p1','dolch-3':'p1','dolch-nouns':'p1'};
