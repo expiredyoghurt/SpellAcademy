@@ -47,3 +47,5 @@ wizc:['...hhhh...','..hhhhhh..','.hhhhhhhh.','...ffff...','...fefe...','...ffff.
 wrh:['...gggg...','..gggggg..','.gkkggkkg.','.gggggggg.','.gggggggg.','.ggmmmmgg.','.gggggggg.','.gg.gg.gg.','.g..gg..g.'],
 heart:['.rr.rr.','rrrrrrr','rrrrrrr','.rrrrr.','..rrr..','...r...'],potion:['..cc..','..cc..','.pppp.','pppppp','pppppp','.pppp.']},_c={};
 function spr(n,pal={},sc=5){const g=SP[n],P={...PAL,...pal},k=n+JSON.stringify(pal);if(!_c[k]){const c=document.createElement('canvas');c.width=g[0].length;c.height=g.length;const x=c.getContext('2d');g.forEach((row,y)=>[...row].forEach((ch,i)=>{if(ch!='.'){x.fillStyle=P[ch];x.fillRect(i,y,1,1)}}));_c[k]=c.toDataURL()}return `<img src="${_c[k]}" style="width:${g[0].length*sc}px;image-rendering:pixelated">`}
+// Lower primary (v4.3): plain wording for the clue shown after a wrong answer. Only the odd jargon word is swapped; the clue itself is already short.
+const plain=h=>S&&S.lower?String(h).replace(/\bsyllables\b/gi,'beats').replace(/\bsyllable\b/gi,'beat').replace(/\/([a-z]+)\//g,'“$1”').replace(/\bSilent\b/g,'Quiet').replace(/\bsilent\b/g,'quiet').replace(/\bdigraph\b/gi,'letter pair'):h;

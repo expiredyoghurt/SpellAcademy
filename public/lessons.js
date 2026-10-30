@@ -826,11 +826,346 @@ cheerful|The {w} baker greeted everyone.|build|cheer + ful: both parts keep thei
  decide:it=>{const r=it.rule;if(!r||!RU12[r])return null;const no=new Set([r,...(it.also||[])]),o=[r,...Object.keys(RU12).filter(k=>!no.has(k)).sort(()=>Math.random()-.5).slice(0,3)].map(k=>RU12[k].n);
   return mc('dq_'+it.w,'rule',`Detective’s report on “${it.w}”: which clue decided the spelling?`,o,0,`${RU12[r].n}. ${it.def}`)},
  match:()=>false,tag:()=>null});
+// ---- Lower primary (v4.0): optional plain-language overrides per lesson. Anything missing falls back to the Upper text. Same ids, stages, scoring; only wording and (where given) easier word lists change. ----
+const LO={};
+LO.silente={name:'The Magic-e Wand',goal:'Learn how a magic e at the end of a word makes the letter say its name.',
+ enc:{say:'Listen to each pair. Say them out loud. One word has an e on the end. What happens to the sound?'},
+ notice:[
+  mc('n1','notice','Which word says the letter name “ay”?',['tap','tape'],1,'tape says “ay”. The magic e at the end did it.'),
+  mc('n2','notice','cap → cape. What did the e do?',['It made the a say its name','It made the word longer for fun','It made the word mean more than one'],0,'The e is quiet. Its wand makes the a say “ay”.'),
+  mc('n3','notice','Where does the magic e go?',['At the end of the word','At the start of the word','In the middle of the word'],0,'It sits at the end, like a cape on the word.'),
+  mc('n4','notice','Which word has a magic e?',['plan','plane','plain'],1,'plane ends with e. In plain, the letters “ai” make the sound.'),
+  mc('d1','diag','Maya wrote “kit” for the toy in the sky. What went wrong?',['She forgot the magic e','She added a letter she did not need','She wrote the wrong first letter'],0,'Without the e, it says kit. Add the magic e and it says kite.')],
+ strat:{title:'The Magic-e Wand',
+  steps:['Say the word. Does the vowel say its name? (a = ay, e = ee, i = eye, o = oh, u = you)','If yes, add an e at the end.','The e is quiet. But its wand makes the vowel say its name.'],
+  ex:'hop → hope<br>“hop” has a short o.<br>Wave the wand: h-o-p-<b>e</b>.<br>Now the o says its name: “hope”.',
+  exc:[{t:'Why do have, give, live and love end in e?',x:'No English word ends in the letter v. So the word gets an e to hide the v. Here the e is a bodyguard, not a wand. That is why have does not say “hayv”.'},{t:'Why do come, some and love have an o?',x:'Long ago, the letter u looked messy next to m, n and v. So people wrote o. We still say “u”, but the o stayed.'},{t:'Words to remember',x:'are, were, there, where, one, move and lose are tricky. Look at them closely and learn them by heart.'}],
+  why:[mc('w1','why','Why does have end with e?',['No word ends in v, so an e hides it','The e makes the a say its name','It is a mistake'],0,'The e is a bodyguard for the v. It is not the magic wand.'),
+   mc('w2','why','What does the magic e do in kite?',['It makes the i say its name','You say it out loud','It means more than one'],0,'The e is quiet. It makes the i say “eye”.')]},
+ guided:words(`kite|We flew a {w} at the park.\ncake|We ate {w} at the party.\nbike|I ride my {w} to school.\nrope|The boy held the {w} tightly.\nhome|It is time to go {w}.\nnose|I smell with my {w}.`),
+ recall:words(`game|Let us play a {w}.\nlake|We saw ducks on the {w}.\ntime|What {w} is it?\nfive|She is {w} years old.\nnote|Please write me a {w}.\ngate|Close the {w}, please.\ntube|Squeeze the {w} of glue.\ncube|He drew a {w}.\nwave|I can {w} my hand.\nhole|The mole dug a {w}.\ntune|She hummed a happy {w}.\nface|Draw a smile on his {w}.`),
+ transfer:words(`smile|She has a big {w}.\nride|Let us {w} the bus.\nhide|The cat likes to {w} in a box.\nsize|What {w} are your shoes?\nshake|Please {w} my hand.\nsnake|A {w} slid in the grass.`),
+ explain:[mc('x1','why','What does the e do in shape, stone and flame?',['It makes the vowel say its name','It adds a beat','It means more than one'],0,'The quiet e is a wand. It makes the vowel say its name.'),
+  mc('x2','why','Which word is a rule-breaker?',['save','have','wave'],1,'have does not say “hayv”. save and wave follow the magic e.'),
+  mc('x3','diag','Someone wrote “hopeing”. What is wrong?',['The magic e goes away before -ing','The e must be doubled','It needs more letters'],0,'Take off the e before -ing: hoping. You will learn this soon!')],
+ hints:it=>{const m=it.w.match(/([aeiou])([^aeiouwxy])e$/);return[
+  'Say the word slowly. Does the vowel say its name? Then you need the magic e.',
+  m?`Look for: “${m[1]}”, then “${m[2]}”, then the magic e.`:'Look for: a vowel, one letter, then the magic e.',
+  `Here are the other letters: ${it.w.replace(/[aeiou]/g,'_')}. Fill in the gaps.`]},
+ diag:(it,a)=>{const w=it.w;a=lc(a);
+  if(w==='have'||w==='give'||w==='live'||w==='love')return'This word is tricky. No word ends in v, so it gets an e, even though the vowel is short.';
+  if(EXC2.has(w))return'This word is tricky. Learn it by heart and see how it is different from kite.';
+  if(a===w.slice(0,-1))return'You forgot the magic e. Add it at the end so the vowel says its name.';
+  return'Look for the pattern: a vowel, one letter, then the magic e, like kite.'}};
+const LR3={dbl:{n:'Give the last letter a twin',t:'Check the Three Ones: one beat, one vowel, one letter at the end. All yes? Then the last letter gets a twin before -ing or -ed.'},add:{n:'Just add the ending',t:'One of the Three Ones is a no. So there is no twin. Just stick the ending on.'}};
+LO.double={name:'The Twin-Letter Charm',goal:'Learn when the last letter gets a twin: hop → hopping.',rules:LR3,
+ enc:{say:'Listen to each pair. The long word is the short word plus an ending. Look at the middle of the long word. What do you see?'},
+ notice:[
+  mc('n1','notice','Which word has ONE vowel and ONE letter at the end?',['hop','help','rain'],0,'hop has one vowel (o) and one last letter (p). help ends in two letters (lp). rain has two vowels (ai).'),
+  mc('n2','notice','hop → hopping. What happened to the p?',['It got a twin','It went away','It turned into i'],0,'The p is written twice: hopping.'),
+  mc('n3','notice','Which word does NOT get a twin before -ing?',['run','sit','help'],2,'help ends in two letters (lp), so we just add -ing: helping.'),
+  mc('n4','notice','Which word says a SHORT o, like “hop”?',['hoping','hopping'],1,'hoping looks like hope + ing. The twin p keeps the o short.'),
+  mc('d1','diag','Ravi wrote “runing”. What went wrong?',['He forgot the twin n','He added a letter he did not need','He used the wrong ending'],0,'run passes the Three Ones, so the n gets a twin: running.')],
+ strat:{title:'The Twin-Letter Charm: the Three Ones',
+  steps:['Ask the Three Ones. One beat? One vowel (a, e, i, o, u)? One letter at the end?','All yes, and the ending is -ing, -ed or -er? Give the last letter a twin.','The twin is a bodyguard. It keeps the vowel short.'],
+  ex:'swim + ing<br>One beat ✓ · one vowel (i) ✓ · one last letter (m) ✓<br>Give the m a twin: swim<b>m</b>ing.<br><br>help + ing<br>It ends in two letters (lp) ✗ → helping.',
+  exc:[{t:'Why do rain, help and open not get a twin?',x:'rain has two vowels. help ends in two letters. The vowel is already safe, so it needs no bodyguard.'},
+   {t:'Why do fix, snow and play not get a twin?',x:'The letters x, w and y never get a twin. So we write fixing, snowing and playing.'},
+   {t:'What if the ending is -ful or -ly?',x:'Only -ing, -ed and -er start with a vowel. Before -ful or -ly, just add the ending: sadly, helpful.'}],
+  why:[mc('w1','why','Why do we write hopping, not hoping?',['The twin p keeps the o short','-ing always needs a twin','hop is a doing word'],0,'Without the twin, hoping looks like hope + ing.'),
+   mc('w2','why','Why is it raining and not rainning?',['rain has two vowels, so it needs no twin','-ing is different here','rain is a thing'],0,'The “ai” is already safe. No bodyguard is needed.')]},
+ guided:joins(`hop+ing=hopping|dbl|The frog is {w} away.\nsit+ing=sitting|dbl|The cat is {w} on the mat.\nhelp+ing=helping|add|She is {w} her mum.\nswim+ing=swimming|dbl|They are {w} in the pool.\nrain+ing=raining|add|It is {w} outside.\nstop+ed=stopped|dbl|The bus {w} at the light.`),
+ recall:joins(`run+ing=running|dbl|The boys are {w} fast.\nshop+ing=shopping|dbl|Mum is {w} at the market.\nclap+ed=clapped|dbl|Everyone {w} loudly.\ndrop+ed=dropped|dbl|She {w} her pencil.\nhug+ed=hugged|dbl|He {w} his sister.\njog+ing=jogging|dbl|Grandpa is {w} today.\nmop+ed=mopped|dbl|She {w} the floor.\nplan+ed=planned|dbl|We {w} a party.\njump+ing=jumping|add|The kids are {w} up and down.\nhelp+ed=helped|add|He {w} me with my bag.\nfix+ing=fixing|add|Dad is {w} my bike.\nbig+er=bigger|dbl|A cow is {w} than a dog.`),
+ transfer:joins(`get+ing=getting|dbl|We are {w} on the bus.\ndig+ing=digging|dbl|They are {w} in the sand.\nzip+ed=zipped|dbl|She {w} her bag.\nsad+er=sadder|dbl|He looked {w} than before.\ncamp+ing=camping|add|We are {w} by the sea.\nplay+ing=playing|add|The kids are {w} outside.`),
+ hints:it=>{const r=LR3[it.rule];return['Do the Three Ones. One beat? One vowel? One letter at the end? Is the ending -ing, -ed or -er?',r.n+'. '+r.t,
+  it.rule==='dbl'?`Try this: ${it.l} + ${it.l.slice(-1)} + ${it.r}`:`Try this: ${it.l} + ${it.r} (no twin)`]},
+ diag:(it,a)=>{a=lc(a);const dbl=it.rule==='dbl';
+  if(dbl&&a===it.l+it.r)return`You stuck the pieces together. But ${it.l} passes the Three Ones, so the last letter needs a twin: ${it.l} + ${it.l.slice(-1)} + ${it.r}.`;
+  if(!dbl&&a===it.l+it.l.slice(-1)+it.r)return`No twin here. ${it.l} fails the Three Ones, so just add the ending.`;
+  if(dbl&&a.startsWith(it.l)&&a.length>it.w.length)return'Too many letters. Only the last letter gets a twin, just once.';
+  return`Go step by step: short word, maybe a twin, then the ending. ${LR3[it.rule].n}.`}};
+
+// ---- Lower primary: Lesson 1 (Sound Sorter) and Lesson 4 (Ending Detective) ----
+const LG1={ai:{s:'“ay”',tip:'ai sits in the MIDDLE of a word: rain, paint, train.'},ay:{s:'“ay”',tip:'ay sits at the END of a word: play, day, away.'},ee:{s:'“ee”',tip:'ee is the most common. Think of two eyes: see, tree, green.'},ea:{s:'“ee”',tip:'ea is sneaky. Use the hook or think of a word in the same family.'},oa:{s:'“oh”',tip:'oa sits in the MIDDLE of a word: boat, road, soap.'},ow:{s:'“oh”',tip:'ow often sits at the END of a word: snow, yellow, window.'},igh:{s:'“eye”',tip:'igh is a trio that goes before t: night, light, fright.'}};
+LO.sounds={goal:'One sound can be spelled in different ways. Learn the clues that help you pick the right spelling.',
+ enc:{say:'Each pair has the SAME sound but different letters. Say them out loud. Which letters make the sound?'},
+ notice:[
+  mc('n1','notice','Rain and play sound the same. Which spelling comes at the END of a word?',['ay','ai'],0,'ay goes at the end: play, day, away. ai goes in the middle: rain, paint.'),
+  mc('n2','notice','Which word has “oa” in it?',['boat','snow','yellow'],0,'boat: b-oa-t. In snow and yellow, the “oh” sound is spelled ow.'),
+  mc('n3','notice','Tree and sea both say “ee”. How are they spelled?',['ee and ea','ai and ay','oa and ow'],0,'Both say “ee”. ee and ea are the two usual spellings.'),
+  mc('n4','notice','Which letters say “eye” in night?',['igh','ie','y'],0,'igh: night, light, fright. Three letters travel together.'),
+  mc('d1','diag','Zoe wrote “rane” for water from the sky. What went wrong?',['She used a-e, but this word uses ai','She forgot a double letter','She used the wrong first letter'],0,'Rain uses ai in the middle. The a-e trick is for words like cake.')],
+ strat:{title:'The Sound Sorter',
+  steps:['Say the word slowly. Find the vowel sound. Which letters can make it? (“ay”: ai, ay · “ee”: ee, ea · “oh”: oa, ow · “eye”: igh)','Use the clues. ay and ow go at the END. ai and oa go in the MIDDLE. For ee and ea, use a hook.','Write the word and LOOK at it. Does it look right? Good spellers always check.'],
+  ex:'pl_ _ says “ay” at the end, so pl<b>ay</b>.<br>r_ _n says “ay” in the middle, so r<b>ai</b>n.<br>Same sound. The place in the word helps you choose.',
+  exc:[{t:'Why does ea sometimes say “eh”, as in head?',x:'The letters ea can say “ee” (sea) or “eh” (bread). When you hear “eh”, learn the word by heart.'},
+   {t:'Why does ow sometimes say “ow”, as in flower?',x:'ow can say “oh” (snow) or “ow” (flower, like ouch). Say the word and listen first.'},
+   {t:'Why does said have ai?',x:'Some words do not follow a pattern. Make a hook for the tricky part: s-ai-d.'}],
+  why:[mc('w1','why','Why can you not spell a word by sound alone?',['One sound can be spelled in different ways','Words never follow sounds','Vowels are silent'],0,'The sound gives you choices. The place in the word and your hook help you pick.'),
+   mc('w2','why','You hear “ay” at the END of a word. What is a good first guess?',['ay','ai','a-e'],0,'ay is the usual spelling at the end: play, today.')]},
+ recall:words(`paint|Let us {w} a picture.||\ntrain|The {w} stops at the station.||\ntoday|It is sunny {w}.||\naway|The bird flew {w}.||\ngreen|The grass is {w}.||\nsheep|The {w} has soft wool.||\nbeach|We play at the {w}.||\nplease|Say thank you and {w}.||\nyellow|The banana is {w}.||\nnight|The stars shine at {w}.||\ndream|I had a happy {w}.||\nroad|Look both ways on the {w}.||`),
+ transfer:words(`rainbow|We saw a {w} after the rain.||\nleaf|A {w} fell from the tree.||\nsweet|The candy is {w}.||\nbirthday|It is my {w} today.||\ntoast|I ate {w} with jam.||\ntail|The dog wags its {w}.||`),
+ explain:[mc('x1','why','Which clue helps you pick ai or ay?',['Where the sound is: ay at the end, ai in the middle','Which has fewer letters','Which comes first in the alphabet'],0,'Play and today end in ay. Rain and paint have ai in the middle.'),
+  mc('x2','why','You are not sure about ee or ea. What can you do?',['Use a hook, then check how it looks','Always pick ee','Always pick ea'],0,'There is no strict rule. A hook and a good look will help.')],
+ hints:it=>{const g=gr1(it.w),G=LG1[g];return G?[`Listen to the vowel sound. It says ${G.s}. Which letters can make it?`,G.tip,`Here is the shape: ${it.w.replace(g,'_'.repeat(g.length))}. The sound letters are missing.`]:['Listen to the vowel sound.','Is the sound in the middle or at the end?','Say the word slowly and write each sound.']},
+ diag:(it,a)=>{a=lc(a);const g=gr1(it.w),G=LG1[g];if(!G)return'Say the word slowly and check each sound.';
+  const alt=G1[g].alts.find(x=>a.includes(x)&&!it.w.includes(x));if(alt)return`You used “${alt}”. It can make the same sound, but this word uses “${g}”. ${G.tip}`;
+  if(!a.includes(g))return`The ${G.s} sound is spelled “${g}” here. ${G.tip}`;return'The sound letters are right. Check the other letters one by one.'}};
+const LR4={drop:{n:'Drop the silent e',t:'The quiet e waves goodbye before -ing, -ed, -er and -est.'},keepe:{n:'Keep the silent e',t:'The quiet e stays before -ful, -ly, -less and -ness.'},y2i:{n:'Change y to i',t:'A y after a plain letter turns into i before an ending. Not before -ing.'},keepy:{n:'Keep the y',t:'The y stays before -ing, and after a, e, i, o, u (play, enjoy).'},dbl:{n:'Give the last letter a twin',t:'A short word with one vowel and one last letter gets a twin before -ing, -ed or -er.'},add:{n:'Just add the ending',t:'Nothing changes. Stick the ending on.'}};
+const in4=(a,s)=>a.filter(x=>s.includes(x.w));
+LO.suffix={name:'The Ending Detective',goal:'Look at a word and its ending. Then decide: drop the e, change the y, give a twin, or just add the ending.',rules:LR4,
+ enc:{say:'Each word is a short word plus an ending. But the short word can change! Listen, then look at the end of the first word.'},
+ notice:[
+  mc('n1','notice','happy → happier. What happens to the y?',['It turns into i','It goes away','It gets a twin'],0,'The y turns into i: happ + i + er.'),
+  mc('n2','notice','Which ending starts with a plain letter (not a, e, i, o, u)?',['-ing','-ful','-ed'],1,'-ful starts with f. -ing and -ed start with a vowel letter.'),
+  mc('n3','notice','hope → hoping. What happens to the silent e?',['It goes away','It stays','It moves to the front'],0,'The quiet e waves goodbye before -ing.'),
+  mc('n4','notice','Which word KEEPS its y?',['carried','carrying','happier'],1,'carrying keeps the y. “carriing” would look messy.'),
+  mc('d1','diag','Leo wrote “hopeing”. What went wrong?',['He kept the silent e before -ing','He gave the p a twin','He forgot the e'],0,'Take off the e before -ing: hoping.'),
+  mc('d2','diag','Mia wrote “carryed”. What did she miss?',['The y turns into i before -ed','Always give a twin','Drop the silent e'],0,'carry ends in a plain letter + y, so the y turns into i: carried.')],
+ strat:{title:'The Ending Detective',
+  steps:['Look at the end of the short word. Then look at the first letter of the ending.','Ask: does it end in a silent e? In a plain letter + y? Is it a Three Ones word?','Silent e: drop it before -ing (hoping), keep it before -ful (hopeful). Plain letter + y: turn y into i (happier), but keep y before -ing. Three Ones: give a twin. Else: just add it.'],
+  ex:'carry + ed<br>Plain letter + y → y turns into i: carr<b>i</b>ed.<br>carry + ing → carrying (the y stays).<br><br>hope + ing → hoping (e goes)<br>hope + ful → hopeful (e stays)',
+  exc:[{t:'Why not “carriing”?',x:'Two i letters side by side look messy. So the y stays before -ing: carrying, crying.'},
+   {t:'Why keep the e in hopeful but drop it in hoping?',x:'The e leaves so two vowels do not bump. -ful starts with a plain letter, so nothing bumps and the e stays.'},
+   {t:'Why is it played, not plaied?',x:'A y after a, e, i, o, u is strong, so it stays: played, enjoyed.'}],
+  why:[mc('w1','why','Why keep the e in hopeful but drop it in hoping?',['-ful starts with a plain letter, so nothing bumps','-ful is longer','hopeful is a naming word'],0,'The e only leaves when two vowels would bump.'),
+   mc('w2','why','Why is it carrying, not carriing?',['Two i letters would look messy','The y turns into e','carry is short'],0,'The y turns into i before most endings, but not before -ing.')]},
+ guided:G4,
+ recall:in4(C4,['make','use','smile','care','safe','hurry','try','cry','enjoy','play','funny'].map(x=>({make:'making',use:'used',smile:'smiling',care:'careful',safe:'safely',hurry:'hurried',try:'tried',cry:'crying',enjoy:'enjoyed',play:'player',funny:'funnier'}[x]))),
+ transfer:in4(T4,['writing','copied','enjoying','moving','excited','runner','worried']),
+ hints:it=>{const r=LR4[it.rule],l=it.l,e=it.r,m={drop:`${l.slice(0,-1)} + ${e}`,keepe:`${l} + ${e}`,keepy:`${l} + ${e}`,add:`${l} + ${e}`,y2i:`${l.slice(0,-1)} + i + ${e}`,dbl:`${l} + ${l.slice(-1)} + ${e}`}[it.rule];
+  return['Look at the end of the short word: silent e, plain letter + y, or Three Ones? Then look at the ending.',r.n+'. '+r.t,'Try this: '+m]},
+ diag:(it,a)=>{a=lc(a);const r=LR4[it.rule],l=it.l,e=it.r;
+  if(a===l+e&&!['keepe','keepy','add'].includes(it.rule))return`You stuck the pieces together. This word needs a change: ${r.n}. ${r.t}`;
+  if(it.rule==='keepy'&&a===l.slice(0,-1)+'i'+e)return'Keep the y here. “carriing” looks messy, and a y after a, e, i, o, u always stays.';
+  if(it.rule==='keepe'&&a===l.slice(0,-1)+e)return'Keep the silent e here. The ending starts with a plain letter, so the e stays.';
+  return`Go step by step. ${r.n}: ${r.t}`}};
+// ---- Lower primary: Lessons 7 (Twin-Word Test) and 8 (Wild Words). Word items reuse the Upper hooks, which are already plain; only a gentler subset of words is used. ----
+const pk=(id,k,ws)=>LIST.find(l=>l.id===id)[k].filter(x=>ws.includes(x.w));
+LO.confused={goal:'Some words sound the same but mean different things. Ask what the word MEANS, and use a hook that fits only one twin.',
+ enc:{say:'Each pair sounds the same, or nearly. But the letters and meanings are different. Listen and think about what each one means.'},
+ notice:[
+  mc('n1','notice','Which word means “belonging to them”?',['their','there'],0,'their = belongs to them. there = a place (it has “here” hiding inside).'),
+  mc('n2','notice','Which word is about a PLACE?',['where','wear','were'],0,'where, there and here all talk about a place. They all end in “here”.'),
+  mc('n3','notice','Which word means “with no noise”?',['quiet','quite'],0,'quiet = no noise. quite = very or fairly (quite tall).'),
+  mc('n4','notice','You put on a hat. Which word do you need?',['wear','where','were'],0,'You wear earrings. There is an “ear” in wear.'),
+  mc('d1','diag','Ben wrote “Let us sit over their.” What went wrong?',['He used their (belongs to them) but meant there (a place)','He used two e letters','Nothing is wrong'],0,'He means a place, so it is there. Look for “here” inside.')],
+ strat:{title:'The Twin-Word Test',
+  steps:['Spot a twin. Two words sound the same, so your ears cannot help.','Ask: what does the word MEAN here? A place? Belongs to someone? No noise?','Use a hook for only ONE twin. there, here and where are all places. see has two e letters, like two eyes.'],
+  ex:'I left my bag over ___.<br>It means a place → <b>there</b> (<b>here</b> is inside).<br>It is ___ bag. It belongs to them → <b>their</b>.',
+  exc:[{t:'Why do twin words exist?',x:'Long ago, words were said differently. Then the sounds changed and became the same. The spellings stayed different, so they help readers tell the meanings apart.'},
+   {t:'Why is it son but sun?',x:'son has the same o as come and some. sun is the star in the sky, with a plain u.'},
+   {t:'Why does witch have a t but which does not?',x:'witch has “tch” like catch. which is a question word like what, when and where.'}],
+  why:[mc('w1','why','What is the best way to pick between twin words?',['Ask what the word means in the sentence','Pick the one that looks nicer','Spell it the way it sounds'],0,'Only the meaning can tell twins apart.'),
+   mc('w2','why','Why can sound not help with their and there?',['They sound the same, so meaning must decide','One of them is silent','They are the same word'],0,'They sound the same. A hook like “there has here inside” helps.')]},
+ recall:pk('confused','recall',['their','quite','were','know','knew','see','sun','son','where','which']),
+ transfer:pk('confused','transfer',['new','seeing','seen','known','sons','suns']),
+ explain:[mc('x1','why','Which question helps you pick between twin words?',['What does it mean in my sentence?','Which one looks nicer?','Which one is shorter?'],0,'Meaning tells twins apart.'),
+  mc('x2','why','Which hook works for sea and see?',['see has two e letters, like two eyes','sea is short for seashell','They are the same word'],0,'The best hook fits only one twin.')],
+ hints:it=>['This word sounds like another word. Ask what it MEANS in this sentence.',it.hook||'Make a hook that fits only this word.',`It has ${it.w.length} letters and starts with “${it.w[0]}”: ${it.w[0]}${'_'.repeat(it.w.length-1)}`],
+ diag:(it,a)=>{a=lc(a);const h=it.hook?' Hook: '+it.hook:'';
+  if(it.tr&&a===it.tr)return`“${a}” is a real word, but it is the twin. It means something else here.${h}`;
+  if(it.tr&&a.length>0&&P7.has(a))return`“${a}” is a different word with a different meaning.${h}`;
+  return`Check each letter against the hook.${h}`}};
+LO.tricky={goal:'Some words do not follow a pattern. Find the tricky bit, stick a hook on it, and check your own spelling.',
+ enc:{say:'These words do not spell the way they sound. Listen, then look at the tricky bit and its hook.'},
+ notice:[
+  mc('n1','notice','Which part of island is tricky?',['the silent s','the double l','the last d'],0,'The s is never said. Make a hook: is-LAND.'),
+  mc('n2','notice','Which word does NOT sound the way it is spelled?',['cat','Wednesday','jump'],1,'We say “Wenz-day” but write a d. Say Wed-nes-day to remember.'),
+  mc('n3','notice','Which hook helps you spell friend?',['A friend is there at the end: fri-END','Friends are fun','fri + yend'],0,'A good hook sticks to the tricky bit. friend ends with end.'),
+  mc('n4','notice','Many people leave a letter out of February. Which one?',['The r before the u','The b','The y'],0,'Say it in full: Feb-RU-ary.'),
+  mc('d1','diag','Dev wrote “wensday”. What did he miss?',['The d: say Wed-nes-day','The y at the end','A double s'],0,'The tricky bit is the d. Say Wed-nes-day, only for spelling.')],
+ strat:{title:'Wild Words: find the tricky bit',
+  steps:['Say the word slowly, the way it is written. Which part does not sound right? That is the tricky bit.','Make a hook: say it funny (Wed-nes-day), find a small word inside (cal-END-ar), or make a short sentence.','Look, Say, Cover, Write, Check. Then fix any mistake yourself.'],
+  ex:'wednesday<br>The tricky bit is the <b>d</b>. Say it funny: <b>Wed-nes-day</b>.<br>Now cover it, write it, and check it.',
+  exc:[{t:'Why does island have an s?',x:'Long ago, the word had no s. Some writers added one by mistake. We never say it, but the s stayed.'},
+   {t:'Why does Wednesday have a d?',x:'It means Woden’s day, after an old god. People used to say the d. We stopped, but the spelling stayed.'},
+   {t:'What about words with no reason?',x:'Some words, like said and could, have no neat reason. A hook does all the work.'}],
+  why:[mc('w1','why','Why does island have an s we do not say?',['Someone added it by mistake long ago','It is a long word','It shows a place'],0,'Knowing the story makes the s easy to remember.'),
+   mc('w2','why','Why is a hook better than copying a word again and again?',['It sticks the tricky bit to something you can say or picture','It makes the word shorter','It changes the spelling'],0,'Your memory holds on to pictures and sounds, not to copying.')]},
+ recall:pk('tricky','recall',['library','different','beautiful','believe','whole','favourite','february','knowledge']),
+ transfer:pk('tricky','transfer',['vegetable','calendar','exercise','interesting','restaurant','language']),
+ explain:[mc('x1','why','Which is a good hook for a tricky word?',['Find a small word hiding inside, like END in calendar','Copy it five times without thinking','Guess from the sound'],0,'A hook gives the tricky bit a reason to stay in your head.'),
+  mc('x2','why','What does Look, Say, Cover, Write, Check help you do?',['Check your own spelling and fix it yourself','Spell without seeing the word','Hear the word spelled out'],0,'The check at the end turns a mistake into learning.'),
+  mc('x3','why','What is tricky in necessary?',['One c and two s letters (one collar, two sleeves)','The letter n','The ending -y'],0,'People mix up the one c and the two s letters.')]};
+// ---- Lower primary: Lesson 6 (Chunking Charm: "syllable" becomes "beat") and Lesson 9 (Family-Tree Charm: new cousin hooks, simpler words) ----
+LO.chunks={goal:'Cut a long word into beats, spell one small chunk at a time, then join the chunks back up.',
+ enc:{say:'Clap the beats as you say each word. One clap is one chunk. Long words are just short chunks stuck together.'},
+ notice:[
+  mc('n1','notice','Clap “banana”. How many beats does it have?',['2','3','4'],1,'ba · na · na has three beats. Each beat is one chunk.'),
+  mc('n2','notice','What does every beat have?',['A vowel sound (a, e, i, o, u)','A capital letter','A twin letter'],0,'Every beat has a vowel sound. So you can count beats by counting vowel sounds.'),
+  mc('n3','notice','Which is the best way to chunk “umbrella”?',['um · brel · la','u · mbr · ell · a','umb · re · lla'],0,'um · brel · la: three beats. Each chunk is easy to say and spell.'),
+  mc('n4','notice','Which word has FOUR beats?',['banana','elephant','caterpillar'],2,'cat · er · pil · lar has four beats. banana and elephant have three.'),
+  mc('d1','diag','Raj wrote “yestaday”. Which chunk went wrong?',['The middle chunk: it is “ter”, not “ta”','The first chunk “yes”','The last chunk “day”'],0,'The middle sounds like “ta” but is spelled ter. Say it as written: yes · TER · day.')],
+ strat:{title:'The Chunking Charm',
+  steps:['Say the word slowly and clap each beat. One clap is one chunk.','Write the chunks with dots: won · der · ful.','Spell one chunk at a time. Then join them and read the whole word back.'],
+  ex:'chocolate → choc · o · late<br>choc: c-h-o-c. o: just o. late: l-a-t-e.<br>Spell each chunk, then stick them together.',
+  exc:[{t:'Why do some chunks sound like “uh”?',x:'In long words, some beats go lazy and say “uh”. So the sound cannot tell you the letter. Say the chunk the way it is written, on purpose: hos · pi · TAL.'},
+   {t:'What about twin letters in the middle?',x:'Split them: one letter ends a chunk and one starts the next. dif · fer · ent. Now you can see both f letters.'},
+   {t:'Why do I clap three beats but write four chunks?',x:'When we talk, we squash a beat. veg-e-ta-ble sounds like “vej-ta-bl”. For spelling, say every chunk slowly.'}],
+  why:[mc('w1','why','Why is chunking a long word helpful?',['Small chunks are easier to spell than one big word','Every word has three chunks','Chunks always spell just as they sound'],0,'A long word is a few short chunks. Spell them one by one.'),
+   mc('w2','why','What is a beat in a word?',['A chunk with one vowel sound','A single letter','Any two letters'],0,'A beat is one chunk of sound. Each beat has a vowel sound.')]},
+ recall:pk('chunks','recall',['adventure','hospital','important','delicious','enormous','festival','generous','calendar']),
+ transfer:pk('chunks','transfer',['remember','envelope','ambulance','hesitate','beginning','excellent']),
+ explain:[mc('x1','why','What helps with the lazy “uh” sound in a long word?',['Say the chunk as it is written, on purpose (Wed · nes · day)','Leave that chunk out','Pick any vowel'],0,'Say it the written way, even if it sounds funny. Then you see the real letters.'),
+  mc('x2','why','What do you do with a twin letter in the middle of a long word?',['Split it: one ends a chunk, one starts the next','Write it once','Move it to the end'],0,'dif · fer · ent shows you both f letters.')]};
+const W9L=t=>{const a=words(t);a.forEach(x=>P9.add(x.w));return a};
+LO.family={goal:'Words in a family share a main part. Use a cousin word you can HEAR to find the letters you cannot hear.',
+ enc:{say:'These words are cousins. Listen to each pair. Which letters can you hear in one word but not in the other?'},
+ notice:[
+  mc('n1','notice','Which word is a cousin of sign?',['signal','single','silent'],0,'sign and signal share the same main part. In signal you can hear the g.'),
+  mc('n2','notice','You cannot hear the g in sign. Where CAN you hear it?',['signal','signed','sign'],0,'In signal. The cousin shows the hidden letter.'),
+  mc('n3','notice','Which word is in the family of magic?',['magician','magnet','mattress'],0,'magic + ian = magician. The c stays.'),
+  mc('n4','notice','Which letter can you hear in columnist but not in column?',['n','m','u'],0,'columnist has an n you can hear. So column has a silent n.'),
+  mc('d1','diag','Tara wrote “dicision”. How does the cousin decide help?',['decide starts with de-c, so decision does too','It shows a silent k','It shows the ending -tion'],0,'decide starts de-c, and decision keeps that: de-c-ision.')],
+ strat:{title:'The Family-Tree Charm',
+  steps:['Ask: does this word have a cousin? A shorter word, or one with the same main part.','Say the cousin. A letter you cannot hear in one word is often clear in its cousin.','Keep the main part. The ending can change the sound, but the letters stay close to the family.'],
+  ex:'sign → signal<br>You cannot hear the g in sign. You can hear it in signal. So sign has a g.<br>know → knew → known: the silent k stays in the whole family.',
+  exc:[{t:'Why does decide change to decision?',x:'When -ion joins, the last sound blends and the d turns into s. Same with explode → explosion.'},
+   {t:'Why does know have a k we do not say?',x:'Long ago, people said the k. We stopped, but the whole family kept it: know, knew, known.'},
+   {t:'Does every cousin work?',x:'Not always. Use the cousin for a good guess, then check it.'}],
+  why:[mc('w1','why','Why can a cousin help you spell a word?',['A letter that is quiet in one word is often clear in its cousin','Cousins always sound the same','Cousins are always shorter'],0,'The cousin shows the letter the sound hides.'),
+   mc('w2','why','Why is it knew, with a k?',['It is in the family of know, and the k stays','Because it is a long word','Because k sounds like n'],0,'The whole family keeps the silent k.')]},
+ guided:W9L(`sign|Please {w} your name here.|gn|Cousin: signal. You can hear the g in signal, so sign has a g too.\nsignal|The traffic light gave a {w}.|gn|Cousin: sign. Say sig-nal: the g is clear here.\nmagician|The {w} pulled a rabbit out of his hat.|cian|Cousin: magic. magic + ian. The c stays.\nmusician|The {w} played the piano.|cian|Cousin: music. music + ian. The c stays.\ndecision|It was a hard {w} to make.|sion|Cousin: decide. The d at the end turns into s: decision.\nknew|She {w} the answer already.|kn|Cousin: know. know has a silent k, and knew keeps it.`),
+ recall:W9L(`known|The singer is {w} all over Asia.|kn|Cousin: know. The silent k stays.\nsigned|He {w} his name at the bottom.|gn|Cousin: signal. The g stays, even if it is quiet.\nmagical|The {w} garden was full of fireflies.|ic|Cousin: magic. magic + al. The c stays.\nmusical|She plays a {w} instrument.|ic|Cousin: music. music + al. The c stays.\ndecided|She {w} to join the choir.|cid|Cousin: decide. The e goes before -ed: decided.\ndeciding|We are {w} where to eat lunch.|cid|Cousin: decide. The e goes before -ing: deciding.\nsigning|She is {w} the card for her friend.|gn|Cousin: signal. The g stays.\nknowing|He smiled, {w} he had the right answer.|kn|Cousin: know. The silent k stays.`),
+ transfer:W9L(`music|We sing and play {w} in class.|ic|Cousin: musician. You can hear the c in musician, so music has a c.\nmagic|The trick was pure {w}.|ic|Cousin: magician. You can hear the c in magician.\nsigns|The road has many {w}.|gn|Cousin: signal. sign + s: the g stays.\nsignals|The {w} are red and green.|gn|Cousin: sign. signal + s: the g stays.\nmusicians|The {w} tuned their violins.|cian|Cousin: music. music + ians: the c stays.\nmagicians|The {w} showed us a trick.|cian|Cousin: magic. magic + ians: the c stays.`),
+ explain:[mc('x1','why','How can you spell column using columnist?',['Hear the n in columnist, so column has a silent n','Spell it just as it sounds','Guess a letter'],0,'The family keeps the letters the sound hides.'),
+  mc('x2','why','What stays the same in a word family?',['The main part’s letters, as far as possible','The number of beats','The sound of every letter'],0,'Sounds change. Spellings stay close to the family.')],
+ hints:it=>['This word has a cousin that shows the hidden letters. Which word is it a cousin of?',it.hook||'Think of a cousin word.',it.tr&&it.w.includes(it.tr)?`Here is its shape: ${it.w.replace(it.tr,'_'.repeat(it.tr.length))}. The cousin helps with the missing letters.`:'Say the word in chunks and check each one.']};
+// ---- Lower primary: Lesson 5 (Word-Builder: prefix/ending/root become word-start/word-end/main word) and Lesson 10 (Memory-Hook) ----
+const LR5={un:{n:'The word-start un- (not)',t:'un- means “not”. Stick it on the main word. Keep every letter: un + happy = unhappy. If two n letters meet, write both (unnecessary).'},
+ re:{n:'The word-start re- (again)',t:'re- means “again”. Stick it on without changing a letter: re + build = rebuild.'},
+ dis:{n:'The word-start dis- (not, the opposite)',t:'dis- means “not”. Keep every letter: dis + appear = disappear.'},
+ mis:{n:'The word-start mis- (wrongly)',t:'mis- means “wrongly”. Keep every letter: mis + place = misplace.'},
+ pre:{n:'The word-start pre- (before)',t:'pre- means “before”: pre + heat = preheat. Keep every letter.'},
+ ful:{n:'The word-end -ful (full of)',t:'-ful means “full of”. It has only ONE l: care + ful = careful.'},
+ less:{n:'The word-end -less (without)',t:'-less means “without”: care + less = careless.'}};
+LO.prefix={goal:'Build long words from small pieces: word-start + MAIN WORD + word-end. Learn what each piece means. The main word keeps all its letters.',rules:LR5,
+ enc:{say:'Each long word is built from pieces. Listen, then look at the pieces: a word-start at the front, the main word, and a word-end at the back.'},
+ notice:[
+  mc('n1','notice','What does the word-start un- mean?',['not','again','before'],0,'un- means “not”: unhappy = not happy.'),
+  mc('n2','notice','Which word means “build again”?',['rebuild','prebuild','misbuild'],0,'re- means “again”: rebuild = build again.'),
+  mc('n3','notice','un + necessary: what happens to the letters?',['Nothing changes, so you see two n letters','One n is dropped','The y turns into i'],0,'Nothing is dropped. un keeps its n and necessary keeps its n.'),
+  mc('n4','notice','In careful, how many l letters are in -ful?',['One','Two','None'],0,'-ful has ONE l. careful = full of care.'),
+  mc('n5','notice','What does the word-start mis- mean?',['wrongly','again','before'],0,'mis- means “wrongly”: misplace = put in the wrong place.'),
+  mc('d1','diag','Mei wrote “carefull”. What went wrong?',['She wrote two l letters, but -ful has one','She forgot the silent e','She doubled the r'],0,'The word-end is -ful with one l.')],
+ strat:{title:'The Word-Builder’s Charm',
+  steps:['Split the word into pieces: word-start + main word + word-end.','Learn what the pieces mean: un- = not · re- = again · dis- = not · mis- = wrongly · pre- = before · -ful = full of · -less = without.','Stick the pieces together WITHOUT changing a letter. If two same letters meet, write both.'],
+  ex:'unnecessary = <b>un</b> (not) + <b>necessary</b><br>Both n letters stay: un<b>n</b>ecessary.<br><br>careful = <b>care</b> + <b>ful</b> (full of care). Only ONE l.',
+  exc:[{t:'Why is -ful spelled with one l?',x:'The word full lost an l when it became a word-end. So it is careful, not carefull.'},
+   {t:'Why does the main word never change?',x:'A word-start is a separate piece at the front. The main word keeps all its letters. So help, helpful, helpless and helping are all easy once you know help.'},
+   {t:'What about mis- and pre-?',x:'They work the same way: mis + place = misplace. If same letters meet, keep both: mis + spell = misspell.'}],
+  why:[mc('w1','why','Why does unnecessary have two n letters?',['un- and necessary each keep their n','Long words always have nn','The e is silent'],0,'Nothing is dropped when a word-start joins a main word.'),
+   mc('w2','why','Why is it careful, not carefull?',['-ful is the short word-end form of full','care is a short word','-ful starts with a vowel'],0,'The word-end has only one l.')]},
+ guided:[...pk('prefix','guided',['unhappy','disappear','rebuild','careful','preheat']),...joins('mis+place=misplace|mis|I always {w} my keys.|to put something in the wrong place')],
+ recall:pk('prefix','recall',['unkind','careless','disobey','replay','wonderful','peaceful','thankful','thoughtless']),
+ transfer:pk('prefix','transfer',['rebuilt','replayed','unkindly','peacefully','disappeared','displeased']),
+ hints:it=>{const r=LR5[it.rule],dbl=it.l.slice(-1)===it.r[0];return[it.def?'Think about the meaning: '+it.def+'. Which piece is the word-start?':'Split the word into pieces. What does the word-start or word-end mean?',r.n+'. '+r.t,`Try this: ${it.l} + ${it.r}${dbl?` (two ${it.r[0]} letters meet: keep both)`:''}`]},
+ diag:(it,a)=>{a=lc(a);const w=it.w;
+  if(w.endsWith('ful')&&a.endsWith('full'))return'-ful has only ONE l.';
+  if(it.l.slice(-1)===it.r[0]&&a.length===w.length-1)return`Keep both letters when the pieces meet: ${it.l} + ${it.r} makes two ${it.r[0]} letters.`;
+  if(a.length<w.length)return`A letter is missing. Stick the pieces together without changing any letter: ${it.l} + ${it.r}.`;
+  return`Check the pieces: ${it.l} + ${it.r}. ${LR5[it.rule].n}.`}};
+LO.hooks={goal:'Some words have no rule. Find the tricky part and make a memory hook that sticks to it: a small word inside, a silly sentence, a picture, or a funny way to say it.',
+ enc:{say:'These words have a tricky part. Each has a hook: a little trick that sticks to the tricky letters. Read the hook out loud and picture it.'},
+ notice:[
+  mc('n1','notice','Which hook hides a small word INSIDE the big word?',['“a rat” in sep-a-rat-e','Say it three times fast','Write it in big letters'],0,'A little word hiding inside a big one is a strong hook: sep-a-RAT-e.'),
+  mc('n2','notice','“Big Elephants Can Always Understand Small Elephants” helps you spell which word?',['because','beautiful','believe'],0,'The first letters spell B-E-C-A-U-S-E. A silly sentence like this is a first-letters hook.'),
+  mc('n3','notice','Which hook is best for “friend”?',['fri-END: a friend is there at the end','Friends are fun','f-r-i-e-n-d is a long word'],0,'A good hook points at the tricky letters and gives them a picture.'),
+  mc('n4','notice','“One collar, two sleeves” helps with necessary. Which letters?',['One c and two s','The last letter y','The first letter n'],0,'A shirt has one collar (c) and two sleeves (ss).'),
+  mc('d1','diag','Dev wrote “seperate”. Which hook fixes his mistake?',['There is a rat in sep-a-RAT-e','It sounds like sep-rit','Say sep-er-ate'],0,'The hook puts the a where Dev wrote an e.')],
+ strat:{title:'The Memory-Hook Charm',
+  steps:['Find the tricky part: the letters you get wrong.','Make a hook for JUST that part: a small word inside, a silly sentence, a picture, or a funny way to say it.','Test it: say the hook, write the word, then check the tricky part.'],
+  ex:'separate<br>Tricky part: the middle a (many people write e).<br>Hook: there is <b>a rat</b> in sep-<b>a-rat</b>-e. Picture a rat in the middle!',
+  exc:[{t:'Does a hook work for every word?',x:'No. Use the tricks from Lessons 2 to 5 first. A hook is for the tricky part that has no trick, like the c and ss in necessary.'},
+   {t:'Why are silly hooks better?',x:'Your brain remembers pictures and surprises. A rat in the middle of a word is odd enough to stay in your head.'},
+   {t:'Whose hook is best?',x:'The one you make yourself. If it makes YOU smile, it will stick.'}],
+  why:[mc('w1','why','What makes a good hook?',['It points at the tricky letters and is easy to picture','It is long and tricky','It has nothing to do with the word'],0,'A hook only helps if it lands on the part you get wrong.'),
+   mc('w2','why','When do you use a hook?',['When the tricky part has no rule','For every word','Never'],0,'Use the tricks first. A hook is for the leftovers.')]},
+ guided:pk('hooks','guided',['separate','because','friend','believe','necessary']),
+ recall:pk('hooks','recall',['height','library','dessert','tomorrow','neighbour','receive','vacuum']),
+ transfer:pk('hooks','transfer',['island','queue','shepherd','poisonous','secretary','weird']),
+ explain:[mc('x1','why','Which is a hook for the word “height”?',['Eight is hiding in h-EIGHT','Height is a long word','It is the opposite of low'],0,'A hook sticks to the tricky letters (eight).'),
+  mc('x2','why','What should a hook point at?',['The tricky part of the word','The first letter only','How many letters it has'],0,'A hook that points somewhere else will not help.')]};
+// ---- Lower primary: Lesson 11 (Error Doctor: slip names in plain words) and Lesson 12 (Detectives: clue names and plain "why" notes) ----
+const FXL={doubling:['a twin-letter slip','A letter that needed a twin was written once (or got a twin it did not need). Chunk the word and check the twin letters.'],
+ silente:['a missing quiet e','The quiet e was left off, so the vowel stays short. The Magic-e Wand puts it back (kit → kite).'],
+ vowel:['a wrong vowel','A vowel is wrong, or two vowels are the wrong way round. A hook helps (a rat in sep-a-RAT-e).'],
+ transposition:['two letters swapped','Two letters swapped places. Check the letters in order, left to right.'],
+ phonetic:['spelling it as it sounds','The word was spelled the way it sounds. But English can spell a sound in different ways, or hide a letter. Learn the trick.'],
+ omission:['a missing letter','A letter is missing. Chunk the word and check each chunk.'],
+ insertion:['an extra letter','An extra letter crept in. Chunk the word and check each chunk.']};
+LO.errors={goal:'Read a misspelling like a doctor: find the slip, say what kind of slip it is, and fix it with the right trick.',
+ enc:{say:'Every misspelling is a clue. It shows WHERE the speller went wrong and WHY. Look at each mistake, then at the cure.',fixes:[['acommodate','accommodate','There are two c letters and two m letters.'],['seperate','separate','The middle letter is an a: there is a rat in sep-a-rat-e.'],['recieve','receive','After c, e comes first.'],['kit','kite','The quiet e was left off, so the i stayed short.']]},
+ notice:[
+  mc('n1','notice','Which word is misspelled?',['friend','freind','island'],1,'freind has the i and e the wrong way round. It is fri-END: friend.'),
+  mc('n2','notice','Which is the right spelling?',['neccessary','necessary','necesary'],1,'necessary has one c and two s: one collar, two sleeves.'),
+  mc('n3','notice','Which spelling has an EXTRA letter?',['beautifull','beautiful','beutiful'],0,'-ful has just one l. beautifull has an extra l.'),
+  mc('n4','notice','Which spelling has a letter MISSING?',['Febuary','February','Februrary'],0,'Febuary lost the first r. It is Feb-RU-ary.'),
+  mc('d1','diag','Maya wrote “seperate” for “separate”. What kind of slip is it?',['A wrong vowel: e instead of a','A missing letter','An extra letter'],0,'The a in the middle became an e. A hook helps: a rat in sep-a-RAT-e.')],
+ strat:{title:'The Error-Doctor Charm',
+  steps:['Look: read the wrong word slowly, one letter at a time. Point at each letter.','Find the slip and name it: a wrong vowel, a missing letter, an extra letter, a twin letter, swapped letters, or a quiet letter.','Fix it with the right trick: a rule, chunking, a twin-word check, or a hook.','Check: write the word again from memory and say how you know.'],
+  ex:'seperate → separate<br>Look: s-e-p-e-r-a-t-e. The second e is the slip.<br>Name it: a wrong vowel (e instead of a).<br>Fix it: a rat in sep-<b>a</b>-rat-e.',
+  exc:[{t:'Why do the same words go wrong again and again?',x:'The brain remembers the sound and the first spelling it saw. If nobody finds the exact slip, the same slip comes back. Naming the slip helps it stop.'},
+   {t:'What if I cannot find the slip?',x:'Put the right word under the wrong one. Compare them letter by letter. Slips like to hide in the middle.'},
+   {t:'Is spelling it as it sounds a real mistake?',x:'It is a very sensible one! English can spell the same sound in many ways. That is why we use tricks and hooks too.'}],
+  why:[mc('w1','why','What does an error doctor do first?',['Reads the word slowly, one letter at a time','Rewrites it faster','Asks someone else'],0,'Slow, careful looking finds the slip. Guessing does not.'),
+   mc('w2','why','Why is it useful to NAME the slip?',['Each kind of slip has its own fix','It loses you a mark','It makes the word longer'],0,'A missing letter is fixed by chunking. A wrong vowel is fixed by a hook.')]},
+ guided:[...pk('errors','guided',['kite','knife','library','separate']),...pk('errors','recall',['friend'])],
+ recall:pk('errors','recall',['because','island','tomorrow','surprise','weird','business']),
+ transfer:pk('errors','transfer',['calendar','exercise','language','schedule','neighbour','scissors']),
+ explain:[mc('x1','why','What do you do first when you check a misspelling?',['Read it slowly, one letter at a time','Guess the answer','Cross it out'],0,'Slow looking comes first.'),
+  mc('x2','why','“libary” is missing a letter. Which trick helps most?',['Chunk it: li · brar · y','The Magic-e Wand','Give the last letter a twin'],0,'Chunking shows every beat, so a missing letter stands out.')],
+ hints:it=>['Look at the wrong word one letter at a time. Which part looks wrong?',it.hook?'Doctor’s note: '+it.hook:'Think of the trick that fits the slip.',`Start by writing the first letters: “${it.w.slice(0,Math.max(2,Math.ceil(it.w.length/2)))}…”`],
+ diag:(it,a)=>{a=lc(a);const S=sp();
+  if(it.bad&&a===lc(it.bad))return'That is the wrong spelling again. Compare it with the right one, letter by letter.';
+  const t=S&&S.classify?S.classify(it.w,a):null;
+  return t&&FXL[t]?`Your answer shows ${FXL[t][0]}. ${FXL[t][1]}`:'Read your answer slowly, one letter at a time, and compare it with the doctor’s note.'},
+ diagQ:it=>{const S=sp(),t=S&&it.bad&&S.classify?S.classify(it.w,lc(it.bad)):null;if(!t||!FXL[t])return null;
+  const others=Object.keys(FXL).filter(k=>k!==t).sort(()=>Math.random()-.5).slice(0,2),o=[t,...others].map(k=>FXL[k][0]);
+  return mc('dq_'+it.w,'diag',`A pupil wrote “${it.bad}” for “${it.w}”. What kind of slip is that?`,o,0,`That is ${FXL[t][0]}. ${FXL[t][1]}`)}};
+const RUL={sound:{n:'Sound clue',t:'Which letters make this sound? Where is it in the word?'},
+ silente:{n:'Magic-e Wand',t:'A vowel, one letter, then a quiet e makes the vowel say its name.'},
+ double:{n:'Twin-Letter Charm',t:'One beat, one vowel, one last letter? Give the last letter a twin before -ing, -ed or -er.'},
+ suffix:{n:'Ending Detective',t:'Drop the quiet e, or turn y into i, before an ending.'},
+ build:{n:'Word-Builder',t:'Word-start + main word + word-end. Every piece keeps its own spelling.'},
+ chunk:{n:'Chunking',t:'Cut the word into beats and spell each chunk.'},
+ twin:{n:'Twin-word test',t:'Ask what the word MEANS. Then pick the twin that fits.'},
+ wild:{n:'Wild word',t:'The word breaks the patterns. Learn its odd part by heart.'},
+ family:{n:'Cousin words',t:'A cousin word you can hear shows the hidden letters.'},
+ hook:{n:'Memory hook',t:'A hook sticks to the tricky part.'}};
+LO.detectives={goal:'Use every trick together. Meet words you have never practised, pick the best clue to spell them, and say how you know, like a detective.',rules:RUL,dl:'Why',
+ enc:{say:'A Spelling Detective never just guesses. For each word, look for a clue, use it, and say how you know. Here are four cases solved.',items:[{w:'swimming',tr:'mm',hook:'Twin-Letter Charm: swim + m + ing.'},{w:'unlucky',tr:'un',hook:'Word-Builder: un + lucky.'},{w:'musician',tr:'ci',hook:'Cousin words: music → musician.'},{w:'together',tr:'',hook:'Memory hook: to + get + her.'}]},
+ notice:[
+  mc('n1','notice','You must spell “unhappy”. Which clue helps?',['un + happy: a word-start stuck on a main word','It sounds like unhappy','It has a quiet letter'],0,'Word-Builder clue: un- is stuck on happy, and happy keeps its own spelling.'),
+  mc('n2','notice','Which clue explains the twin p in “stopped”?',['stop has one beat, one vowel and one last letter','p always gets a twin','It sounds quick'],0,'Twin-Letter Charm: stop + p + ed.'),
+  mc('n3','notice','Which word shows the cousin clue?',['musician (from music)','kitten','banana'],0,'You can hear the c in music, so musician keeps it.'),
+  mc('n4','notice','Which clue helps with a long word like “astronaut”?',['Chunk it into beats: as · tro · naut','Skip the middle','Guess the vowels'],0,'Chunking turns a long word into short pieces.'),
+  mc('d1','diag','Sam wrote “makeing”. Which clue did he forget?',['The quiet e goes away before -ing','Give the k a twin','Add another e'],0,'make + ing makes making. The quiet e waves goodbye.')],
+ strat:{title:'The Detective’s Method',
+  steps:['LISTEN and CHUNK: say the word slowly and clap the beats.','LOOK for clues: a trick, a word-start or word-end, a cousin word, a twin, a wild part, or a hook?','DECIDE: write the word with the best clue.','CHECK and SAY: does it look right? Say: “I wrote ___ because ___.”'],
+  ex:'unlucky<br>Clue: Word-Builder. un + lucky.<br>“I wrote <b>unlucky</b> because un- is stuck on lucky, and lucky keeps its own spelling.”',
+  exc:[{t:'What if two clues fit?',x:'Wonderful! Two clues that agree make you even more sure.'},
+   {t:'What if no clue fits?',x:'Then it is probably a wild word. Find the odd part and make a hook for it.'},
+   {t:'Can a detective be wrong?',x:'Yes! That is why the last step is CHECK. If a word looks wrong, try another clue or look it up.'}],
+  why:[mc('w1','why','Why does a detective say HOW they know?',['Saying it shows you understand the clue, so you can use it again','It makes the test slower','It is only for teachers'],0,'If you can explain a clue, you can use it on a new word.'),
+   mc('w2','why','A word fits no trick you know. What should a detective do?',['Treat it as a wild word and make a hook','Spell it as it sounds and move on','Give up'],0,'Wild words are learned by heart. A hook helps the odd part stick.')]},
+ guided:words12(`swimming|We are {w} in the pool.|double|swim has one beat, one vowel and one last letter. So the m gets a twin: swim + m + ing.|\nsmiling|She was {w} from ear to ear.|suffix|smile ends in a quiet e. The e goes away before -ing: smil + ing.|silente\nrailway|The {w} goes to the city.|sound|The “ay” sound is spelled ai in rail and ay in way: rail + way.|build\nunlucky|It was an {w} day for the team.|build|un + lucky: un- is stuck on lucky, and lucky keeps its spelling.|\nmusician|My uncle is a talented {w}.|family|Cousin: music. You can hear the c in music: music + ian.|\nbutterfly|A {w} landed on the flower.|chunk|but · ter · fly: the twin t is split, one t on each side.|`),
+ recall:words12(`stopped|The bus {w} at the light.|double|stop has one beat, one vowel and one last letter: stop + p + ed.|\nbabies|The two {w} were asleep.|suffix|baby ends in a plain letter + y. The y turns into i: bab + ies.|\ntoaster|Dad put bread in the {w}.|sound|The “oh” sound is spelled oa in the middle of a word: t-oa-st-er.|\ncareless|It was a {w} mistake.|build|care + less: both pieces keep their spelling, so the e stays.|\nanswer|Please write your {w} on the line.|wild|The w is quiet, so answer is a wild word. Learn the w by heart.|\npiece|May I have a {w} of cake?|twin|It means a part of something. Its twin, peace, means calm.|\ntogether|We walked home {w}.|hook|to + get + her: a hook that splits the word into three small words.|chunk\nwinner|The {w} got a gold medal.|double|win has one beat, one vowel and one last letter: win + n + er.|`),
+ transfer:words12(`planning|We are {w} a surprise party.|double|plan has one beat, one vowel and one last letter: plan + n + ing.|\nhurried|She {w} to catch the bus.|suffix|hurry ends in a plain letter + y. The y turns into i: hurr + ied.|\nrebuild|They will {w} the old bridge.|build|re + build: re- is stuck on build, and build keeps its u.|\nhear|I can {w} a bird singing.|twin|You do it with your ear, and hear has ear inside. Its twin, here, is a place.|\ncastle|The knight lived in a {w}.|wild|The t is quiet, so castle is a wild word. Learn the t by heart.|\ncheerful|The {w} baker greeted everyone.|build|cheer + ful: both pieces keep their spelling, and -ful has one l.|`),
+ explain:[],
+ hints:it=>{const r=RUL[it.rule];return['LISTEN and CHUNK: say the word slowly. How many beats do you hear?',r?`A clue to try: the ${r.n}. ${r.t}`:'Look for a clue: a trick, a word-start or word-end, a cousin word, a twin, a wild part or a hook.',`It has ${it.w.length} letters and starts with “${it.w[0]}”: ${it.w[0]}${'_'.repeat(it.w.length-1)}`]},
+ diag:(it,a)=>{const r=RUL[it.rule];return r?`Think about the ${r.n}. ${r.t}`:'Look for a clue: a trick, a word-start or word-end, a cousin word, a twin, a wild part or a hook.'},
+ decide:it=>{const r=it.rule;if(!r||!RUL[r])return null;const no=new Set([r,...(it.also||[])]),o=[r,...Object.keys(RUL).filter(k=>!no.has(k)).sort(()=>Math.random()-.5).slice(0,3)].map(k=>RUL[k].n);
+  return mc('dq_'+it.w,'rule',`Detective’s report on “${it.w}”: which clue decided the spelling?`,o,0,`${RUL[r].n}. ${it.def}`)}};
+// ---- Lower primary (v4.3.1): Spellbook chip labels. Same lesson ids; only the label text changes. ----
+const TAGLO={'silent e':'magic e','e rule-breaker':'tricky e word','double letters':'twin letters','ending change':'word-end change','prefix & endings':'word-start & end','chunk it':'clap the beats','twin word':'sound-alike word','word family':'cousin words'};
 const pools=l=>[...(l.guided||[]),...(l.recall||[]),...(l.transfer||[])];
-const get=id=>LIST.find(l=>l.id===id);
+const VC=new Map(),view=l=>{let m=VC.get(l.id);if(!m){const o=LO[l.id];m={...l,...o,lower:true};for(const k of['strat','enc'])if(o[k])m[k]={...l[k],...o[k]};VC.set(l.id,m)}return m}; // Lower primary: the lesson with its plain-language overrides merged over the Upper text
+const get=(id,lo)=>{const l=LIST.find(x=>x.id===id);return l&&LO[id]&&(lo===undefined?API.low:lo)?view(l):l},list=lo=>LIST.map(l=>get(l.id,lo)); // lo: true = Lower, false = Upper, omitted = the browser's current setting (Lessons.low). The Worker always passes it, so nothing is shared between requests
 const find=(id,w)=>{const l=get(id);return l?pools(l).find(x=>x.w===w)||null:null};
-const tag=w=>{w=lc(w);const out=[];for(const l of LIST){const t=l.tag&&l.tag(w);if(t)out.push({l:l.id,t})}return out};
+const tag=(w,lo)=>{w=lc(w);const out=[],low=lo===undefined?API.low:lo;for(const l of LIST){const t=l.tag&&l.tag(w);if(t)out.push({l:l.id,t:low&&TAGLO[t]||t})}return out}; // chip labels: plain wording for Lower classes
 const match=(id,w)=>{const l=get(id);return !!(l&&l.match&&l.match(lc(w)))};
-g.Lessons={LIST,PLAN,STAGES,BIT,get,find,tag,match,pools};
+const API=g.Lessons={LIST,PLAN,STAGES,BIT,get,list,find,tag,match,pools,low:false,HAS_LOWER:id=>!!LO[id]};
 if(typeof module!=='undefined')module.exports=g.Lessons;
 })(typeof self!=='undefined'?self:globalThis);

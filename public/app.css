@@ -153,3 +153,30 @@ button.sm{min-height:36px;padding:2px 10px;margin:0;font-size:.85em}
 .badw{color:#fca5a5;font-weight:700;text-decoration:line-through wavy #ef4444;text-decoration-thickness:1.5px}
 .fixs{font-size:1.1em;line-height:1.7;margin:8px 0;padding:10px 12px;border-radius:10px;background:#ef44440f;border-left:4px solid #ef4444}
 .asg{border-left:4px solid #fbbf24}.pill.due{background:#7f1d1d;color:#fff}
+
+/* Say It! (v4.4) */
+.si .siw{font-weight:800;text-align:center;line-height:1.1;margin:.15em 0;word-break:break-word}
+.si .ipa{font-family:"Noto Sans","Charis SIL","Segoe UI",system-ui,sans-serif}
+.si .sub{text-align:center;color:var(--mut)}
+.si .msg{text-align:center;font-size:1.15em;min-height:1.6em;margin:6px 0}
+.si .tiles{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.si .tile{min-width:52px;text-align:center;border-radius:12px;padding:6px 10px;color:#fff;font-size:1.3rem}
+.si .tile small{display:block;color:#fff;opacity:.9;font-size:.7rem}
+.si .t-good{background:#15803d}.si .t-mid{background:#b45309}.si .t-bad{background:#b91c1c}
+.si .opt{display:block;width:100%;text-align:left;background:var(--card2);border:3px solid transparent;color:var(--ink);box-shadow:none;margin:6px 0}
+.si .opt.ok{background:#166534;border-color:#86efac}.si .opt.no{background:#991b1b;border-color:#fca5a5}
+.si .ck{display:inline-block;padding:4px 12px;border-radius:12px;font-weight:800;font-size:1.4rem;margin:3px;color:#fff}
+.si .c0{background:#4f46e5}.si .c1{background:#b45309}.si .c2{background:#15803d}.si .c3{background:#9333ea}
+.si .chips button{min-height:44px}
+.si .phg{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.si .ph{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;margin:0;background:var(--card2);border:3px solid transparent;box-shadow:none}
+.si .ph.sel{border-color:#fff;background:var(--card)}
+.si .ph .sym{font-size:1.6rem;line-height:1.1}.si .ph .sp{font-size:.8rem;opacity:.8;font-weight:600}
+.si .detail{min-height:120px}
+.si .split{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin:14px 0}
+.si .lt{font-size:2.2rem;font-weight:800}
+.si button.gap{width:30px;min-height:56px;padding:0;margin:0 3px;border-radius:8px;background:var(--bg2);border:2px solid var(--a);box-shadow:none}
+.si button.gap.on{background:var(--a)}
+.si td,.si th{padding:6px 4px;border-bottom:1px solid #fff2;vertical-align:middle}
+.si td button{min-height:40px;padding:4px 12px;margin:2px}
+@media (prefers-reduced-motion:no-preference){.si #rec:disabled{animation:sip 1s infinite}@keyframes sip{50%{transform:scale(1.04)}}}
