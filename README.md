@@ -15,6 +15,10 @@ public/lessons.js  Spellcraft Lessons content and pattern tools (also shared wit
 public/lesson.js   Pupil screens for Spellcraft Lessons
 public/player.js   Pupil screens: Home, Rooms, Spellbook, Me, all game modes
 public/teacher.js  Teacher / admin dashboard
+public/sayit.js    Say It! pupil screens (loaded only when a pupil opens the room)
+public/sayit-data.js Say It! content tables: sound chart, drills, strategies, syllables (browser and Worker)
+public/textscore.js Word-matching scorer for engines that return text (Worker only)
+src/sayit.js       Say It! speech engines, XP rule and class switches
 migrations/        One-off SQL for upgrading an older deployment
 ```
 
@@ -225,6 +229,9 @@ Class page → Overview → *Assigned lessons*: choose a lesson and an optional 
 ### Lesson words in the Trial builder (v3.7)
 In *New Trial*, the *Add the words of a Spellcraft Lesson* menu adds that lesson's words, with their sentences and hooks, to the word box (a Trial holds at most 40 words, so a long lesson is trimmed). Edit the list as usual before creating the Trial.
 
+### Home page lesson button (v3.8)
+Class settings → *Home page*: tick **Show a Spellcraft Lessons button on pupils' Home page** (off by default, per class). Pupils then see a button above *Cast today's spells* that opens the lesson page of the first lesson, in order 1 to 12, whose learn, guided, recall and transfer steps are not all passed (the memory check is not required), with "n of 12 lessons finished". When every lesson is done it shows an *Open lessons* card instead. Hidden for guests and while the Spellcraft Lessons room is locked. Stored in the class settings (`homeLes`): no migration.
+
 ### Upgrading to v3.6 and v3.7
 No migration is needed for either version (v3.7 stores assignments in the existing class settings). Deploy the new files as usual. Cache numbers in `index.html`: app.css 20, spelling.js 12, lessons.js 8, core.js 19, player.js 21, lesson.js 4, teacher.js 13.
 
@@ -300,3 +307,80 @@ necessary|It is {w} to wear a helmet when cycling.|One collar, two sleeves.
 - **Deploy fails on Durable Objects**: confirm the Workers Paid plan is active.
 - **"Unknown class code"**: the teacher must create the class first.
 - **Database errors**: check the ID in `wrangler.toml` and that `schema.sql` ran.
+
+## Lower primary mode for Spellcraft Lessons (v4.0)
+Teachers choose the level **per class**: Class settings → *Spellcraft Lessons level* (Upper is the default, so existing classes are unchanged).
+- Stored as `level:'lower'|'upper'` in `classes.settings` (no migration). `/api/teacher/modes` saves it; `/api/lessons` returns `lower`.
+- Lessons, stages, ids and scoring are identical in both modes, so progress is shared if a class is switched. Only wording and (where a lesson has them) the guided/recall/transfer word lists change.
+- Content lives in `chunks/98_lower.js` (build tools), as `LO.<lesson id>` overrides merged over the Upper lesson by `Lessons.get(id, lower)`. Anything missing falls back to the Upper text, so lessons can be converted one at a time.
+- **All 12 lessons have Lower text (v4.2).** A lesson without an `LO` entry would still fall back to the Upper text.
+- The Worker always passes `lower` explicitly. The browser sets `Lessons.low` from `/api/lessons`. Teacher screens always show the Upper names.
+- Tests: `test/t7.mjs <repo>` (switch saved, Lower words accepted and Upper-only words refused in a Lower class, stages pass, fallback check).
+- Cache numbers: lessons.js 9, lesson.js 6, teacher.js 15.
+
+## Plain-language pass for Lower classes: Echo Hall and Word Forge (v4.3)
+The per-class level (Class settings → *Spellcraft Lessons level*) now also reaches two rooms. Upper classes are unchanged.
+- The Worker returns `lower` on login and `/api/progress`; the browser keeps it as `S.lower`.
+- **Echo Hall** (and every room that shows a word's clue after a miss): the clue goes through `plain()` in `core.js`. It swaps the odd jargon word only (syllable → beat, silent → quiet, /ee/ → “ee”); the clues themselves were already short.
+- **Word Forge**: `/api/forge` returns `forgeRulesLow()` (`src/forge.js`) for Lower classes: all 22 rules with plain names, short text and the same examples, so items and marking do not change. A rule missing from `LOWR` falls back to the Upper text. Forge item difficulty is still set by the class's Forge setting.
+- Tests: `test/t8.mjs <repo>`. Cache numbers: core.js 20, player.js 23.
+- Still Upper-only: Mending Workshop and Curse-Breaking Tower messages, Trials, spaced-review explanations, teacher tables (see v4.3.1 for what moved).
+
+### v4.3.1: Spellbook chips, Rooms list, Dungeon tips
+- **Spellbook chips:** `Lessons.tag(word, lower)` maps labels through `TAGLO` (`chunks/98_lower.js`): silent e → magic e, double letters → twin letters, prefix & endings → word-start & end, twin word → sound-alike word, word family → cousin words, and so on. With no flag it follows `Lessons.low`, which is now set from the class level in `prog()` and `book()`; the Worker never sets it, so it stays Upper there.
+- **Rooms list:** `MDL` in `player.js` holds Lower descriptions for the seven rooms; the Spellbook blurb has a Lower version too.
+- **Wraith Dungeon:** each floor's spelling tip uses `DSTL` for Lower classes where the Upper tip has jargon (floors 1, 3, 5, 6 and 10); the other floors keep their tip.
+- Cache numbers: lessons.js 10, player.js 24. Tests: `t8.mjs` (extended).
+
+### v4.3.2: Tower, caught-up screen, Dungeon and Duel hints
+- **Curse-Breaking Tower:** Lower classes get "Tap the words that are spelled wrong. Then press Submit." and a result line such as "You found 1 of 2 cursed words ... Now fix each one!".
+- **All caught up** screen: a shorter Lower version.
+- **Dungeon and Duel hints:** the hint and tip the Worker sends now pass through `plain()` too, so the word-bank clue gets the same word swaps everywhere.
+- The Mending Workshop only shows the word-bank clue, so it was covered in v4.3.
+- Still Upper-only: Trials and review explanations, the Home screen text (already short), teacher tables. Cache number: player.js 25. Tests: `t8.mjs`.
+
+## v4.3.3: Dolch lists tagged to P1, and Word Forge difficulty for Lower classes
+**Dolch lists** (`src/words.js`): six new built-in lists, named as in the brief: *Dolch: Pre-Primer, Primer, 1st Grade, 2nd Grade, 3rd Grade* and *Dolch: Nouns* (277 distinct words). Only words of 3+ letters are in them, so the 2-letter "or" is left out. Each word has a sentence with `{w}` and a clue (reused from the existing bank where the word is already there, otherwise a letter-by-letter sight-word clue).
+- They are **tagged to P1** (`TAGS` in `words.js`). Ticking P1 for a class also brings in every list tagged to it, the same way a teacher's tagged lists already work (`bankForD`), so a P1 class now draws on about 317 words. Each Dolch list can also be ticked on its own.
+- The library listing returns `tag` for these lists, and the P1 count includes them.
+- "Santa Claus" has a space and "don't" an apostrophe; both are kept as given.
+
+**Word Forge difficulty:** 60 new easy items (`lv` 1 and 2; 20 + 40) in `src/forge.js`, using only the existing rules (add, drop-e, double, y-to-i, plural-es, y-keep, keep-e).
+- **Lower classes** get items from lv 1 up to their level: from the highest P-list ticked (a Dolch list counts as P1), or the teacher's *Word Forge level* choice, which now offers **P1** and **P2**. With nothing ticked they default to P1-P2.
+- **Upper classes** never see lv 1-2 items (their pool is lv 3 and up, as before), and the guest Forge stays at lv 3-4.
+- Tests: `t8.mjs`. Cache number: teacher.js 16.
+
+## Say It! (v4.4)
+Merged from the standalone Say It! v0.5. A room on the Rooms tab (🗣️) with five parts, all kept:
+- **Read aloud**: the pupil hears or reads a word, taps Say it, and is scored. Words come from the class's word lists, words with unearned XP first.
+- **Sound chart**: all 44 English phonemes with example words (British English).
+- **Word attack**: Sounds 101, Sound games (6-question drills), Strategies, Word lab (say a word chunk by chunk), Spelling, Syllables, Split it.
+- **My words**: best score, XP (out of 10) and tries for every word the pupil has said.
+- The sound chart, Word attack drills and Split it need no microphone and never contact a speech service.
+
+### Two switches per class (Teacher → class → Settings → Say It!)
+| Switch | Default | Effect |
+| --- | --- | --- |
+| Show the Say It! room | on | Untick to hide the room and switch it off completely: it leaves the Rooms list, its code is never downloaded, and every `/api/say/*` route answers 403. |
+| Allow pupils' voice recordings to be sent for scoring | **off** | Off: no microphone is ever opened, nothing is sent to any service, nothing is stored; Read aloud and the Word lab Say it button disappear. On: recordings are sent to a speech-checking service and scores are saved. Turning the room off also turns this off, and turning the room back on does not bring it back. |
+Both are stored in `classes.settings.say` as `{on, voice}`; no migration is needed for them.
+
+### XP rule (`SAY_CAP`, `sayTier` in `src/sayit.js`)
+- A word can pay **10 XP in total, ever**, however many times it is recorded.
+- One recording pays by accuracy: 90+ = 10 XP, 80-89 = 8, 65-79 = 6, 50-64 = 4, 25-49 = 2, below 25 or nothing heard = 0.
+- A recording pays only the difference between its tier and what the word has already paid. A 6 XP read then a perfect read pays 6 then 4. A worse read after a better one pays 0 and never takes XP away.
+- There is no streak bonus (it would break the cap). The Worker alone decides scores and XP: the browser sends only the recording (or, for browser speech recognition, the recognised text).
+- The accuracy bands are first guesses. Calibrate them with real pupil recordings, including Singapore English, before relying on them.
+
+### Which scorer runs
+The Worker picks the first available: Azure (sound-by-sound tiles, needs `AZURE_SPEECH_KEY` secret and `AZURE_REGION`), Google (`GOOGLE_STT_KEY` secret), then Whisper on Workers AI (the `AI` binding in `wrangler.toml`, no key). If none is set up, the pupil's browser speech recognition is used where it exists. Pupils cannot choose, so that everyone in a class is scored the same way. There is no demo mode: random scores would pay real XP.
+
+### Limits and privacy
+- Per pupil: one submission every 2 seconds and 60 per rolling 24 hours (`SAY_GAP`, `SAY_DAILY`). Recordings over 400 KB are refused. A silent take is caught in the browser before upload.
+- Stored per submission: pupil, word, engine, accuracy, Azure phoneme scores, XP, time (`speech_attempts`), plus the best per word (`speech_best`). **No audio and no transcript is stored.**
+- Audio goes to Microsoft (Azure), Google, Cloudflare (Workers AI) or the browser maker (browser recognition). Check school and MOE policy and get parental consent before switching voice on for a class.
+
+### Upgrading from v4.3.3
+1. Run `migrations/015_sayit.sql` in the D1 Console (it is also in `schema.sql`) **before** deploying.
+2. Deploy. `wrangler.toml` now has an `[ai]` binding and three `[vars]`. Add the Azure or Google secrets only if you want them.
+3. Every class sees the Say It! room with voice off until its teacher ticks the second switch.

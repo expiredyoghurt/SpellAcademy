@@ -25,3 +25,9 @@ create table if not exists lesson_attempts(id integer primary key autoincrement,
 create index if not exists la_s on lesson_attempts(student_id,lesson);
 create table if not exists lesson_runs(id integer primary key autoincrement,student_id integer,lesson text,stage text,cur text,i integer default 0,score integer default 0,n integer default 0,status text default 'active',ts integer default (unixepoch()));
 create index if not exists lr_s on lesson_runs(student_id);
+
+-- v4.4 Say It! 
+-- speech_best holds what each pupil has earned from each word (XP is capped per word); speech_attempts logs every voice submission (no audio, no transcript).
+create table if not exists speech_best(student_id integer,word text,xp integer default 0,best integer default 0,tries integer default 0,upd integer default 0,primary key(student_id,word));
+create table if not exists speech_attempts(id integer primary key autoincrement,student_id integer,word text,engine text,accuracy integer default 0,phonemes text,xp integer default 0,ts integer default (unixepoch()));
+create index if not exists sa_s on speech_attempts(student_id,ts);
