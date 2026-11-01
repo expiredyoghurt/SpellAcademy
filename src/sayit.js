@@ -13,7 +13,8 @@ export const sayTier=acc=>acc>=90?10:acc>=80?8:acc>=65?6:acc>=50?4:acc>=25?2:0;
 
 // ---- Per-class switches (classes.settings.say). on: the room exists at all. voice: pupil recordings may be sent to a scoring service and logged. ----
 // Defaults: on = true, voice = false. A class whose teacher has never opened the setting gets the no-microphone content only.
-export const sayCfg=set=>{const s=(set&&set.say)||{},on=s.on!==false;return{on,voice:on&&s.voice===true}};
+// read: the "Learn to read" path (ages 3 to 7). Default on for Lower primary classes, off otherwise; a teacher's tick overrides either way.
+export const sayCfg=set=>{const s=(set&&set.say)||{},on=s.on!==false;return{on,voice:on&&s.voice===true,read:on&&(s.read===undefined?(set&&set.level)==='lower':s.read===true)}};
 
 // Words that may earn XP besides the class's own word bank: the Say It! starter set and the Word lab words.
 export const SAY_EXTRA=new Set([...SayData.WORDS.map(x=>x[0]),...SayData.L.map(x=>x[0])].map(w=>w.toLowerCase()));

@@ -21,11 +21,14 @@ async function open(){
  if(c.error||!c.on){S.say={on:false,voice:false};save();toast('Say It! is not open for your class right now.');return rooms()}
  cfg={...cfg,...c};S.say={on:c.on,voice:c.voice};save();home();
 }
+const sayLoadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.append(e)});
+async function reader(){try{if(typeof ReadData=='undefined')await sayLoadJs('/sayit-read.js?v=2');if(typeof SayPlay=='undefined')await sayLoadJs('/sayit-play.js?v=2');SayPlay.open(cfg)}catch{toast('Learn to read could not open. Please try again.');home()}}
 function home(){
  DG=null;rd=null;
  const low=!!S.lower,v=cfg.voice,ok=canTalk();
  draw(`<h2>🗣️ Say It!</h2>
  <div class=card><small>${low?'Say words out loud. Learn the sounds that make up words.':'Read words aloud and earn XP for how clearly you say them. Explore every sound in English, then learn word-attack strategies.'}</small></div>
+ ${cfg.read?`<div class="card room"><span class=ic>📚</span><div><b>Learn to read</b><br><small>${low?'Learn sounds, blend them, and read words. Ten minutes a day.':'Short daily sessions: learn sounds one at a time, blend them into words and read decodable words and sentences.'}</small></div><button data-a=reader>Play</button></div>`:''}
  ${ok?`<div class="card room"><span class=ic>🎤</span><div><b>Read aloud</b><br><small>Say each word. Up to <b>${cfg.cap} XP</b> for each word. Say it better later to top up your XP.</small></div><button data-a=start>Start</button></div>
   <div class=card><small>🔒 When you tap Say it, your voice is sent to a speech-checking service to be scored. Spell Academy does not keep the recording.</small></div>`
  :v?`<div class=card><b>🎤 Read aloud</b><br><small>This device cannot listen to you. Try another device or browser.</small></div>`
@@ -242,6 +245,7 @@ function click(e){
  const b=e.target.closest('[data-a]');if(!b||b.disabled)return;const a=b.dataset.a,d=b.dataset;
  if(a==='back'){try{speechSynthesis.cancel()}catch{}return rooms()}
  if(a==='home'){try{speechSynthesis.cancel()}catch{}return home()}
+ if(a==='reader')return reader();
  if(a==='start')return start();if(a==='rec')return rec();if(a==='next')return next();if(a==='stats')return stats();
  if(a==='hear')return say(rd.words[rd.i].w,.7);
  if(a==='learn'){lt='s';return learn()}

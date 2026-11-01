@@ -18,6 +18,10 @@ public/teacher.js  Teacher / admin dashboard
 public/sayit.js    Say It! pupil screens (loaded only when a pupil opens the room)
 public/sayit-data.js Say It! content tables: sound chart, drills, strategies, syllables (browser and Worker)
 public/textscore.js Word-matching scorer for engines that return text (Worker only)
+public/sayit-read.js Learn to read: sounds, word and sentence banks, decodability, mastery and session rules (browser, Worker and tests)
+public/sayit-play.js Learn to read: the child's screens and the grown-ups area
+src/reading.js     Learn to read: Worker routes (/api/rd/*)
+docs/              Recording checklist, pilot protocol, privacy and consent checklist
 src/sayit.js       Say It! speech engines, XP rule and class switches
 migrations/        One-off SQL for upgrading an older deployment
 ```
@@ -384,3 +388,37 @@ The Worker picks the first available: Azure (sound-by-sound tiles, needs `AZURE_
 1. Run `migrations/015_sayit.sql` in the D1 Console (it is also in `schema.sql`) **before** deploying.
 2. Deploy. `wrangler.toml` now has an `[ai]` binding and three `[vars]`. Add the Azure or Google secrets only if you want them.
 3. Every class sees the Say It! room with voice off until its teacher ticks the second switch.
+
+## Say It! "Learn to read" (v1.0, in Spell Academy v4.5.0)
+A third part of the Say It! room for children aged about 3 to 7, built from the stand-alone Say It! v0.6 to v1.0 plan. It is a daily 10-minute path, not a game with points.
+
+**What a child sees.** A big Play button. Every instruction is spoken (and can be muted); nothing needs reading. Targets are 75 px or larger, nothing scrolls on a play screen, and a wrong answer gets "Good try! Let us look again", never a red cross.
+
+**Activities.** Sound Safari (pick the picture with the sound), Say the Sound (participation only, the microphone listens on the device and sends nothing), Blend Boat (tap each sound, slide, pick the word), Read the Word (microphone), Sentence Reader (words light up after reading), Tricky words, Word Builder (build a spoken word from sound tiles), Tracing, and three listening games with no letters (rhyme, odd one out, clap the beats).
+
+**Sounds and order.** 42 sounds in 7 groups plus the endings -s, -ed, -ing, with a second "Letters and Sounds style" order. A grown-up can say which group the school has finished. One new sound per day, and only once the last one is mastered. About 357 decodable words and 30 decodable sentences (more can be added in `public/sayit-read.js`).
+
+**Decodable only.** A word or sentence is offered only if every sound in it has been taught, apart from taught tricky words. `t10.mjs` checks this for both sound orders at every stage.
+
+**Mastery.** A sound or word is mastered at 5 of the last 6 tries correct, on at least 2 different days. Reviews return after 1, 2, 4 and 7 days. A session is a review block, a new-sound block and a reading block, capped at 12 minutes. A child who has been helped ("assisted") gets no mastery credit for that word.
+
+**Listening.** The Worker, not the browser, decides what was heard. A read is correct if the transcript matches the word or an accepted variant (for example thin said as tin or fin). A close word (sit for sat) is "near", and the app points at the sound that differs ("check the middle sound") by comparing the sounds of the two words. Two tries, then the app blends the word with the child. Recording ends when the child stops talking.
+
+**Switches.** Teacher, class, Settings, Say It!:
+| Switch | Default |
+| --- | --- |
+| Show the Say It! room | on |
+| Allow voice recordings to be sent for scoring | **off**; also needs each parent to tick consent in the grown-ups area |
+| Show "Learn to read" | on for Lower primary classes, off otherwise |
+With voice off, or no parent consent, or no microphone, sessions use only the activities that need no microphone. The reading path never pays XP. Removing a pupil in the teacher dashboard now also clears their voice and reading data (and their lesson data, which was missed before).
+
+**Grown-ups area.** Behind a small multiplication question. Shows the 45-sound mastery map, words read, days in a row, a printable summary, avatar, sound order, "which group is the school on", and the voice consent box with a plain account of where the voice goes.
+
+**Audio.** Sounds, voice-overs and (optionally) words are looked for as recorded files first: `public/audio/sounds/<id>.mp3`, `public/audio/vo/<key>.mp3`, `public/audio/words/<word>.mp3`. Until they exist the browser voice is used, which says some pure sounds poorly. `docs/RECORDING_CHECKLIST.md` lists every file name.
+
+**Not done, and cannot be done by software alone** (see `docs/PILOT_PROTOCOL.md`): the child playtests, the false-reject measurement with real children, the recordings, and the privacy review (`docs/PRIVACY_AND_CONSENT.md`). Until those are done, treat the reading path as built, not validated.
+
+### Upgrading from v4.4.0
+1. Run `migrations/016_reading.sql` in the D1 Console (also in `schema.sql`) before deploying.
+2. Deploy. No new secrets.
+3. Lower primary classes will see Learn to read at once, with voice still off.

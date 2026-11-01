@@ -4,6 +4,7 @@ import Lessons from '../public/lessons.js'; // Spellcraft Lessons: content and p
 const {mis,classify}=Spelling;
 import {sayCfg,sayTier,engines as sayEngines,runEngine,scoreHeard,SAY_EXTRA,SAY_CAP,SAY_DAILY,SAY_GAP,SAY_MAXBYTES} from './sayit.js'; // Say It! (v4.4)
 import SayData from '../public/sayit-data.js';
+import {rdBin,rdJson} from './reading.js'; // Say It! "Learn to read" (v4.5)
 import {FORGE,RULES,forgeBy,forgeRules,forgeRulesLow} from './forge.js'; // Word Forge: roots, endings and the rules that join them
 const PARSED=Object.fromEntries(Object.entries(LISTS).map(([k,v])=>[k,v.w.split('\n').filter(Boolean).map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}))]));
 const flagsFor=(ws,lv,sh,id)=>{const seen=new Set(),out=[];for(const x of ws){const why=[];if(seen.has(x.w))why.push('repeated in this list');seen.add(x.w);lv.forEach(v=>{if((PARSED[v]||[]).some(y=>y.w==x.w))why.push('already in '+v.toUpperCase())});sh.forEach(o=>{if(o.id!=id&&o.v.some(v=>lv.includes(v))&&o.s.has(x.w))why.push('in shared list "'+o.name+'"')});if(why.length)out.push({w:x.w,why:why.join('; ')})}return out};
@@ -223,6 +224,7 @@ if(p==='/api/say/score'&&req.method==='POST'){ // the body is a WAV file, so thi
  const len=+req.headers.get('content-length')||0;if(len>SAY_MAXBYTES)return J({error:'Recording too long'},413);
  const audio=await req.arrayBuffer();if(audio.byteLength>SAY_MAXBYTES||audio.byteLength<1000)return J({error:'Bad recording'},400);
  return sayGo(env,a0,u.searchParams.get('word'),async w=>[await runEngine(eng,audio,w,env),eng])}
+if((p==='/api/rd/read'||p==='/api/rd/sent')&&req.method==='POST'){const a0=await verify(env,(req.headers.get('authorization')||'').slice(7));if(!a0||a0.r!=='s')return J({error:'Not signed in'},401);return rdBin(env,req,a0,p,u,c=>classSettings(env.DB,c))}
 const b=req.method==='POST'?await req.json().catch(()=>({})):{};
 const a=await verify(env,(req.headers.get('authorization')||'').slice(7)),D=env.DB;
 const T=a&&a.r==='t',St=a&&a.r==='s';
@@ -299,6 +301,7 @@ if(St&&p==='/api/forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')
  return J({rules:(await cs(a.code)).level==='lower'?forgeRulesLow():forgeRules(),items:queue(pool,x=>x.w,sm,now,n).map(x=>pubForge(x.o))})}
 // ---- Spellcraft Lessons: pupil side ----
 // The Home page button: the next lesson (in order) whose first four steps are not all passed. Only when the teacher switched it on for the class and the lessons room is open.
+if(St&&p.startsWith('/api/rd/'))return rdJson(env,a,p,b,u,cs);
 if(St&&p==='/api/say/config'){const c=sayCfg(await cs(a.code));return J({...c,engines:c.voice?sayEngines(env):[],cap:SAY_CAP})}
 if(St&&p==='/api/say/heard')return sayGo(env,a,b.word,async w=>[scoreHeard(w,b.alts),null]); // browser speech recognition: the device sends the recognised text, the Worker scores it
 if(St&&p==='/api/say/words'){if(!sayCfg(await cs(a.code)).on)return J({error:'off'},403);
@@ -407,7 +410,7 @@ if(T){
  if(p==='/api/teacher/assign'){const c=(b.code||'').toUpperCase();if(!await own(c))return J({error:'Not your class'},403);
   const mine=(await D.prepare('select id from lists where owner=?').bind(a.id).all()).results.map(x=>'c'+x.id),ids=[...new Set(b.lists||[])].filter(i=>LISTS[i]||mine.includes(i));
   await D.batch([D.prepare('delete from class_lists where code=?').bind(c),...ids.map(i=>D.prepare('insert into class_lists(code,list) values(?,?)').bind(c,i))]);return J({ok:1,lists:ids})}
- if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';set.forge=/^(auto|all|p[1-6])$/.test(b.forge||'')?b.forge:'auto';set.homeLes=!!b.homeLes;set.level=b.level==='lower'?'lower':'upper';if(b.say){const on=b.say.on!==false;set.say={on,voice:on&&b.say.voice===true}} // Say It!: on = the room exists; voice = recordings may be sent to a scoring service and logged (off whenever the room is off)
+ if(p==='/api/teacher/modes'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),set=await cs(c);set.modes={};for(const k of Object.keys(GATE))set.modes[k]=['auto','open','locked'].includes((b.modes||{})[k])?b.modes[k]:'auto';set.enrol=b.enrol==='closed'?'closed':'open';set.forge=/^(auto|all|p[1-6])$/.test(b.forge||'')?b.forge:'auto';set.homeLes=!!b.homeLes;set.level=b.level==='lower'?'lower':'upper';if(b.say){const on=b.say.on!==false;set.say={on,voice:on&&b.say.voice===true,...(b.say.read===true||b.say.read===false?{read:on&&b.say.read}:{})}} // Say It!: on = the room exists; voice = recordings may be sent to a scoring service and logged (off whenever the room is off)
  await D.prepare('update classes set settings=? where code=?').bind(JSON.stringify(set),c).run();return J({ok:1})}
  if(p==='/api/teacher/lessonassign'){if(!await own(b.code))return J({error:'Not your class'},403);const c=b.code.toUpperCase(),les=Lessons.get(String(b.lesson||''));if(!les)return J({error:'Unknown lesson'},400);const set=await cs(c),now=Math.floor(Date.now()/1000);let asg=(set.asg||[]).filter(x=>x.l!==les.id);
   if(b.on!==false){const due=Math.floor(+b.due||0);if(due&&due<now-86400)return J({error:'Choose a due date in the future.'},400);if(due>now+400*86400)return J({error:'Choose a due date within the next year.'},400);asg.push({l:les.id,due:due>0?due:0,ts:now})}
@@ -454,7 +457,7 @@ if(T){
  const pwords=t=>(t||'').split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(x=>/^[a-zA-Z'-]{3,}$/.test(x[0]||'')).map(x=>({w:x[0].toLowerCase(),s:(x[1]||'').includes('{w}')?x[1]:'Spell the word: {w}.',h:x[2]||'Sound it out slowly.'}));
   const ownP=id=>D.prepare('select s.id,s.name,s.code from students s join classes c on c.code=s.code where s.id=? and c.teacher_id=?').bind(+id,a.id).first();
   const ownL=id=>D.prepare('select * from lists where id=? and owner=?').bind(+String(id||'').slice(1),a.id).first();
-  const wipe=where=>[D.prepare('delete from trial_answers where run_id in (select id from trial_runs where student_id in (select id from students where '+where+'))'),...['attempts','runs','badges','duel_wins','word_state','trial_runs'].map(t=>D.prepare('delete from '+t+' where student_id in (select id from students where '+where+')'))];
+  const wipe=where=>[D.prepare('delete from trial_answers where run_id in (select id from trial_runs where student_id in (select id from students where '+where+'))'),...['attempts','runs','badges','duel_wins','word_state','trial_runs','lesson_state','lesson_attempts','lesson_runs','speech_best','speech_attempts','rd_prof','rd_state','rd_log'].map(t=>D.prepare('delete from '+t+' where student_id in (select id from students where '+where+')'))];
   if(p==='/api/teacher/me'){const u=await D.prepare('select user from teachers where id=?').bind(a.id).first();return J({user:u&&u.user,classes:(await D.prepare('select count(*) n from classes where teacher_id=?').bind(a.id).first()).n,pupils:(await D.prepare('select count(*) n from students s join classes c on c.code=s.code where c.teacher_id=?').bind(a.id).first()).n})}
   if(p==='/api/teacher/password'){const t=await D.prepare('select * from teachers where id=?').bind(a.id).first(),np=String(b.new||'');if(!t||await hash(String(b.old||''),t.salt)!==t.hash)return J({error:'Your current password is not correct'},400);if(np.length<6)return J({error:'New password must be at least 6 characters'},400);if(np===String(b.old))return J({error:'Choose a password different from the current one'},400);
    const salt=crypto.randomUUID();await D.prepare('update teachers set salt=?,hash=? where id=?').bind(salt,await hash(np,salt),a.id).run();return J({ok:1})}
