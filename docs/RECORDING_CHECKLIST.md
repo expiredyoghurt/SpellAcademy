@@ -3,6 +3,8 @@
 The app looks for a recorded file first and uses the browser voice only if the file is missing. Record a human voice: browser text-to-speech cannot say pure sounds (sss, not suh).
 
 ## How to record
+**Easiest way (v4.6): Admin > Audio.** Record in the browser and save straight to the app; no mp3 files, no deploy. See the README. The file-based route below still works as a fallback.
+
 - A quiet room, a decent microphone, 44.1 kHz or 48 kHz, mono. Export mp3 (about 96 kbps is plenty). Trim silence at both ends; keep each sound under 1.2 seconds.
 - **Pure sounds:** stretch continuous sounds (sss, mmm, fff, lll, nnn, rrr, vvv, zzz) and keep stop sounds short and clipped (t, p, k, d, b, g) with no "uh" added where you can. Say the sound, never the letter name.
 - Accent: record in the accent you want children to copy and tell the pilot parents which it is. Singapore classrooms usually follow a British-style model.
