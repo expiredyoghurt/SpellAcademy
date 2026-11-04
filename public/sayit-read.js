@@ -181,7 +181,7 @@ function compose(o){ // {seq, n (sounds taught), newId, dueSounds:[ids], dueWord
  return{steps:out,secs:out.reduce((a,s)=>a+(SECS[s.t]||30),0)}}
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
-// ---- Voice-over lines. key -> text. Record each as public/audio/vo/<key>.mp3 (see docs/RECORDING_CHECKLIST.md); until then the browser voice reads the text.
+// ---- Voice-over lines. key -> text. Record each in Admin > Audio (or as public/audio/vo/<key>.mp3; see docs/RECORDING_CHECKLIST.md); until then the browser voice reads the text.
 const VO={
  tap_start:'Tap to start!',welcome:'Hello! Let us learn some sounds.',mic_check:'Say hello to me!',mic_ok:'I can hear you!',mic_no:'I cannot hear you, but that is okay. We can still play.',
  safari_first:'Which picture starts with the sound?',safari_mid:'Which picture has the sound?',safari_end:'Which picture ends with the sound?',teach_it:'This is the sound. Do the action with me.',

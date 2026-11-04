@@ -22,7 +22,7 @@ async function open(){
  cfg={...cfg,...c};S.say={on:c.on,voice:c.voice};save();home();
 }
 const sayLoadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.append(e)});
-async function reader(){try{if(typeof ReadData=='undefined')await sayLoadJs('/sayit-read.js?v=2');if(typeof SayPlay=='undefined')await sayLoadJs('/sayit-play.js?v=2');SayPlay.open(cfg)}catch{toast('Learn to read could not open. Please try again.');home()}}
+async function reader(){try{if(typeof ReadData=='undefined')await sayLoadJs('/sayit-read.js?v=2');if(typeof SayPlay=='undefined')await sayLoadJs('/sayit-play.js?v=3');SayPlay.open(cfg)}catch{toast('Learn to read could not open. Please try again.');home()}}
 function home(){
  DG=null;rd=null;
  const low=!!S.lower,v=cfg.voice,ok=canTalk();

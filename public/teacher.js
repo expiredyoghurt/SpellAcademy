@@ -26,10 +26,10 @@ let AK='',AT='te',AD={};
 const aapi=(p,b={})=>api('admin/'+p,{key:AK,...b});
 function admin(){R(`<h2>🛠 Admin</h2><div class=card><small>Enter the admin key to continue. It is kept only in this browser tab and is forgotten when you lock the page or reload.</small><input id=ak class=wide type=password placeholder="Admin key"><button class="wide big" onclick=admUnlock()>Unlock</button></div><button class="wide ghost" onclick=teacher()>Back</button>`);$('#ak').onkeydown=onEnter(admUnlock)}
 async function admUnlock(){const k=$('#ak').value,r=await api('admin/teachers',{key:k});if(r.error)return note(r.error,0);AK=k;AD={te:r};AT='te';adm()}
-const alock=()=>{AK='';AD={};teacher()};
-function adm(){const tabs=[['te','👩‍🏫 Teachers'],['cl','🏫 Classes'],['rv','📝 Review'],['mt','🧰 Tools']];
+const alock=()=>{AK='';AD={};AUD.blob=null;document.onkeydown=null;teacher()};
+function adm(){const tabs=[['te','👩‍🏫 Teachers'],['cl','🏫 Classes'],['rv','📝 Review'],['au','🎙 Audio'],['mt','🧰 Tools']];
  R(`<div class=tools style="justify-content:space-between"><h2 style="margin:0">🛠 Admin</h2><button class="ghost sm" onclick=alock()>🔒 Lock</button></div><div class=seg style="margin-top:10px">${tabs.map(([k,n])=>`<button class="${k==AT?'on':''}" onclick="AT='${k}';adm()">${n}</button>`).join('')}</div><div id=ac></div>`);
- ({te:atch,cl:acls,rv:arev,mt:amt})[AT]()}
+ ({te:atch,cl:acls,rv:arev,au:aau,mt:amt})[AT]()}
 function atch(){const r=AD.te,t=r.totals;$('#ac').innerHTML=`<div class=kpis style="grid-template-columns:repeat(3,1fr)"><div class=kpi><b>${t.teachers}</b><small>teachers</small></div><div class=kpi><b>${t.classes}</b><small>classes</small></div><div class=kpi><b>${t.pupils}</b><small>pupils</small></div></div>
  <div class=card><b>Teachers</b>${r.teachers.length?`<div class=scr><table><tr><th>Username<th>Classes<th>Pupils${r.teachers.map(x=>`<tr><td>${esc(x.user)}<td>${x.classes}<td>${x.pupils}`).join('')}</table></div>`:'<br><small>No teachers yet.</small>'}</div>
  <details class=card ${r.teachers.length?'':'open'}><summary>＋ Create a teacher</summary><input id=nu class=wide placeholder="Username (3 or more characters)" ${AI}><input id=np class=wide placeholder="Password (6 or more characters)" ${AI}><button class=wide onclick=mk()>Create teacher</button></details>
@@ -57,6 +57,63 @@ async function arev(){if(!AD.pe){$('#ac').innerHTML='<div class=card><small>Load
 async function apNext(){const i=AD.pe.findIndex(x=>x.id==AD.pi);AD.pe=null;const r=await aapi('pending');if(r.error)return note(r.error,0);AD.pe=r.lists;AD.pi=(r.lists[Math.min(i,r.lists.length-1)]||{}).id;arev()}
 async function ap(id,level,yes){const r=await aapi('review',{id,level,approve:yes});if(r.error)return note(r.error,0);note(yes?'Approved '+level.toUpperCase():'Declined '+level.toUpperCase());apNext()}
 async function apAll(id){const l=AD.pe.find(x=>x.id==id);for(const v of l.pending){const r=await aapi('review',{id,level:v,approve:true});if(r.error)return note(r.error,0)}note('All levels approved');apNext()}
+
+// ---- Audio tab (v4.6): record the Say It! sounds and voice-overs in the browser and save them to the app ----
+// Pipeline: microphone -> trim silence -> level to a safe peak -> 22.05 kHz mono WAV -> /api/admin/audio/put. Saved clips play for pupils straight away.
+const AUD={kind:'sounds',key:'',blob:null,rec:null,st:'idle',pk:0,dur:0};
+const auLoad=src=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
+const auSets=()=>({sounds:{n:'Sounds',items:ReadData.ALL.map(id=>({k:id,t:ReadData.GR[id].text,say:ReadData.GR[id].tts,x:ReadData.GR[id].pics.map(p=>p.w).join(', '),stop:/^(c|d)/.test(ReadData.GR[id].type||'')&&/^(t|p|ck|d|b|g|j|c|k)$/.test(id)})),max:3},
+ vo:{n:'Voice-overs',items:Object.entries(ReadData.VO).map(([k,t])=>({k,t,say:t})),max:10},
+ words:{n:'Words (optional)',items:ReadData.WORDS.map(o=>({k:o.w,t:o.w,say:o.w})),max:3}});
+async function aau(){const c=$('#ac');if(!AD.au){c.innerHTML='<div class=card><small>Loading…</small></div>';
+ try{if(typeof ReadData=='undefined')await auLoad('/sayit-read.js?v=2')}catch{return c.innerHTML='<div class=card>Could not load the sound list.</div>'}
+ const r=await aapi('audio/list');if(r.error)return note(r.error,0);AD.au=Object.fromEntries(r.clips.map(x=>[x.kind+'/'+x.key,x]))}
+ AUD.sets=AUD.sets||auSets();const S=AUD.sets[AUD.kind],done=k=>!!AD.au[AUD.kind+'/'+k],cnt=Object.fromEntries(Object.entries(AUD.sets).map(([k,v])=>[k,v.items.filter(i=>AD.au[k+'/'+i.k]).length]));
+ if(!S.items.some(i=>i.k===AUD.key))AUD.key=(S.items.find(i=>!done(i.k))||S.items[0]).k;const it=S.items.find(i=>i.k===AUD.key);
+ c.innerHTML=`<div class=seg>${Object.entries(AUD.sets).map(([k,v])=>`<button class="${k==AUD.kind?'on':''}" onclick="auKind('${k}')">${v.n} ${cnt[k]}/${v.items.length}</button>`).join('')}</div>
+ <div class=card id=aur><small>Use a quiet room and a good microphone, close to your mouth. Press <b>Space</b> to start and stop, <b>Enter</b> to save. The recording is trimmed and levelled for you. Say pure sounds (sss, not "es"), never letter names.</small>
+ <div style="text-align:center;margin:14px 0"><div id=aut style="font-size:${it.t.length>6?'2rem':'4rem'};font-weight:800;line-height:1.1">${esc(it.t)}</div>
+ ${AUD.kind=='sounds'?`<div>Say: <b>${esc(it.say)}</b>${it.stop?' <small>(short and clipped, no extra "uh")</small>':''}</div><small>as in ${esc(it.x)}</small>`:''}${done(it.k)?'<div><small class=ok>✓ saved '+Math.round(AD.au[AUD.kind+'/'+it.k].bytes/1000)+' KB</small></div>':''}</div>
+ <div class=tools style="justify-content:center"><button id=aub class=big onclick=auToggle()>${AUD.st=='rec'?'■ Stop':'● Record'}</button></div>
+ <div id=aum style="height:10px;background:var(--bg2);border-radius:6px;margin:10px 0"><div id=aul style="height:100%;width:0;background:var(--a);border-radius:6px"></div></div>
+ <div id=aus style="text-align:center;min-height:1.4em"><small>${AUD.blob?'':'Ready.'}</small></div>
+ <div class=tools style="justify-content:center"><button class=ghost id=aup onclick=auPlay() ${AUD.blob?'':'disabled'}>▶ Hear it</button><button id=aus2 onclick=auSave() ${AUD.blob?'':'disabled'}>✔ Save</button><button class=ghost onclick=auDrop() ${AUD.blob?'':'disabled'}>↺ Discard</button></div>
+ <div class=tools style="justify-content:center;margin-top:8px"><button class="ghost sm" onclick="auGo(-1)">◀ Previous</button><button class="ghost sm" onclick="auNext()">Next missing ▶</button><button class="ghost sm" onclick="auGo(1)">Next ▶</button></div></div>
+ <div class=card><b>${S.n}</b> <small>· tap a row to record it</small><div class=scr><table><tr><th>${AUD.kind=='sounds'?'Sound':'Item'}<th>Saved<th>${''}${S.items.map(i=>`<tr onclick="auPick('${esc(i.k).replace(/'/g,"\\'")}')" style="cursor:pointer;${i.k===AUD.key?'background:var(--bg2)':''}"><td>${esc(i.t.length>40?i.t.slice(0,38)+'…':i.t)}<td>${done(i.k)?'✓':'—'}<td>${done(i.k)?`<button class="ghost sm" onclick="event.stopPropagation();auHear('${esc(i.k).replace(/'/g,"\\'")}')">▶</button><button class="ghost sm" onclick="event.stopPropagation();auDel('${esc(i.k).replace(/'/g,"\\'")}')" aria-label=Delete>🗑</button>`:''}`).join('')}</table></div></div>`;
+ document.onkeydown=e=>{if(AT!=='au'||!$('#aur')||/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;if(e.code==='Space'){e.preventDefault();auToggle()}else if(e.key==='Enter'&&AUD.blob){e.preventDefault();auSave()}}}
+const auSay=t=>{const e=$('#aus');if(e)e.innerHTML='<small>'+t+'</small>'};
+function auKind(k){auStop(true);AUD.kind=k;AUD.key='';AUD.blob=null;aau()}
+function auPick(k){auStop(true);AUD.key=k;AUD.blob=null;aau()}
+function auGo(d){const L=AUD.sets[AUD.kind].items,i=L.findIndex(x=>x.k===AUD.key);auPick(L[(i+d+L.length)%L.length].k)}
+function auNext(){const L=AUD.sets[AUD.kind].items,i=L.findIndex(x=>x.k===AUD.key),o=[...L.slice(i+1),...L.slice(0,i+1)].find(x=>!AD.au[AUD.kind+'/'+x.k]);if(!o)return note('Everything in this list is saved');auPick(o.k)}
+function auStop(quiet){const r=AUD.rec;AUD.rec=null;if(r){r.quiet=quiet;try{r.mr.state!=='inactive'&&r.mr.stop()}catch{}}AUD.st='idle'}
+async function auToggle(){if(AUD.st==='rec')return auStop();
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:false,noiseSuppression:false,autoGainControl:false}}),ctx=new(window.AudioContext||window.webkitAudioContext)(),an=ctx.createAnalyser();an.fftSize=1024;ctx.createMediaStreamSource(st).connect(an);
+  const mr=new MediaRecorder(st),ch=[],r={mr,quiet:false},buf=new Uint8Array(an.fftSize),max=AUD.sets[AUD.kind].max;AUD.rec=r;AUD.st='rec';AUD.blob=null;aau();auSay('Recording… press Space or ■ to stop');
+  const t0=Date.now(),tick=setInterval(()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128)/128);const l=$('#aul');if(l)l.style.width=Math.min(100,m*130)+'%';if(Date.now()-t0>max*1000+4000)auStop()},50);
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  mr.onstop=async()=>{clearInterval(tick);st.getTracks().forEach(t=>t.stop());ctx.close();AUD.st='idle';if(r.quiet)return;
+   try{const w=await auEncode(await new Blob(ch).arrayBuffer());AUD.blob=w.blob;AUD.pk=w.peak;AUD.dur=w.dur;aau();
+    const warn=w.peak<.05?' ⚠ Very quiet: move closer or turn the microphone up.':w.raw>=.99?' ⚠ Too loud (clipping): move back a little.':w.dur>max*.8?' ⚠ Longer than expected: trim by saying it more crisply.':'';
+    auSay(w.dur.toFixed(2)+' s.'+warn+' Press ▶ to hear it, then Save.')}catch{auSay('That recording could not be read. Please try again.')}};
+  mr.start()}catch{auSay('The microphone is blocked. Allow it in the browser, then try again.')}}
+// Decode, trim silence (keep a little breath at each end), level so the loudest point is 90%, resample to 22.05 kHz mono, write a 16-bit WAV.
+async function auEncode(ab){const ac=new(window.AudioContext||window.webkitAudioContext)(),d=await ac.decodeAudioData(ab);ac.close();const RATE=22050,n=Math.max(1,Math.ceil(d.duration*RATE)),oc=new OfflineAudioContext(1,n,RATE),s=oc.createBufferSource();s.buffer=d;s.connect(oc.destination);s.start();
+ const x=(await oc.startRendering()).getChannelData(0);let raw=0;for(const v of x)raw=Math.max(raw,Math.abs(v));const th=Math.max(.02,raw*.06);let a=0,b=x.length-1;while(a<b&&Math.abs(x[a])<th)a++;while(b>a&&Math.abs(x[b])<th)b--;
+ a=Math.max(0,a-Math.round(RATE*.06));b=Math.min(x.length-1,b+Math.round(RATE*.12));const y=x.slice(a,b+1),g=raw>0?.9/raw:1,pcm=new Int16Array(y.length);
+ for(let i=0;i<y.length;i++){const f=Math.min(1,i/220,(y.length-1-i)/440);pcm[i]=Math.max(-1,Math.min(1,y[i]*g*f))*32767} // short fade in and out stops clicks
+ const o=new DataView(new ArrayBuffer(44+pcm.length*2)),W=(p,t)=>[...t].forEach((c,i)=>o.setUint8(p+i,c.charCodeAt(0)));
+ W(0,'RIFF');o.setUint32(4,36+pcm.length*2,true);W(8,'WAVEfmt ');o.setUint32(16,16,true);o.setUint16(20,1,true);o.setUint16(22,1,true);o.setUint32(24,RATE,true);o.setUint32(28,RATE*2,true);o.setUint16(32,2,true);o.setUint16(34,16,true);W(36,'data');o.setUint32(40,pcm.length*2,true);
+ pcm.forEach((v,i)=>o.setInt16(44+i*2,v,true));return{blob:new Blob([o],{type:'audio/wav'}),peak:raw,raw,dur:y.length/RATE}}
+let auA=null;const auAudio=u=>{try{auA&&auA.pause()}catch{}auA=new Audio(u);auA.play().catch(()=>auSay('Could not play that.'))};
+const auPlay=()=>AUD.blob&&auAudio(URL.createObjectURL(AUD.blob));
+const auHear=k=>auAudio('/api/audio/'+AUD.kind+'/'+encodeURIComponent(k)+'?t='+Date.now());
+const auDrop=()=>{AUD.blob=null;aau()};
+async function auSave(){if(!AUD.blob)return;const k=AUD.key,kind=AUD.kind;auSay('Saving…');
+ const r=await fetch('/api/admin/audio/put?kind='+kind+'&key='+encodeURIComponent(k),{method:'POST',headers:{'x-admin-key':AK,'content-type':'audio/wav'},body:AUD.blob}).then(r=>r.json()).catch(()=>({error:'Connection problem. Please try again.'}));
+ if(r.error)return note(r.error,0);AD.au[kind+'/'+k]={kind,key:k,bytes:r.bytes,upd:r.upd};AUD.blob=null;note('Saved '+k);
+ const L=AUD.sets[kind].items,i=L.findIndex(x=>x.k===k),nx=[...L.slice(i+1),...L.slice(0,i)].find(x=>!AD.au[kind+'/'+x.k]);AUD.key=nx?nx.k:k;aau()}
+async function auDel(k){if(!confirm('Delete the saved recording for "'+k+'"? The browser voice will be used instead.'))return;const r=await aapi('audio/delete',{kind:AUD.kind,name:k});if(r.error)return note(r.error,0);delete AD.au[AUD.kind+'/'+k];note('Deleted');aau()}
 function amt(){$('#ac').innerHTML=`<div class=card><b>Shared word lists</b><br><small>Removes words that appear twice across the lists teachers have shared, or that are already in a built-in level list. This cannot be undone.</small><button class=wide onclick=dd()>Remove repeats from shared lists</button></div><div class=card><b>Session</b><br><small>Lock this page when you are done. The admin key is never saved.</small><button class="wide ghost" onclick=alock()>🔒 Lock admin page</button></div>`}
 async function dd(){if(!confirm('Remove repeated words from all shared lists? This cannot be undone.'))return;const r=await aapi('dedupe');r.error?note(r.error,0):(AD.pe=null,note(r.removed+' repeated word(s) removed from shared lists.'))}
 // ---- Classes ----

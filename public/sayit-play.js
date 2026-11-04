@@ -14,9 +14,9 @@ function tts(text,rate=.8){return new Promise(res=>{let d=false;const fin=()=>{i
 function file(url,text,rate){return new Promise(res=>{if(miss.has(url))return tts(text,rate).then(res);let d=false;const bad=()=>{if(d)return;d=true;miss.add(url);tts(text,rate).then(res)};
  try{const a=new Audio(url);cur=a;a.onended=()=>{if(!d){d=true;res()}};a.onerror=bad;a.play().catch(bad)}catch{bad()}})}
 const stopAudio=()=>{try{cur&&cur.pause()}catch{}try{speechSynthesis.cancel()}catch{}};
-const vo=k=>vox&&RD.VO[k]?file('/audio/vo/'+k+'.mp3',RD.VO[k]):Promise.resolve();
-const snd=id=>file('/audio/sounds/'+id+'.mp3',GR[id].tts,.7);
-const wordSay=w=>file('/audio/words/'+w+'.mp3',w,.8);
+const vo=k=>vox&&RD.VO[k]?file('/api/audio/vo/'+encodeURIComponent(k),RD.VO[k]):Promise.resolve();
+const snd=id=>file('/api/audio/sounds/'+encodeURIComponent(id),GR[id].tts,.7);
+const wordSay=w=>file('/api/audio/words/'+encodeURIComponent(w),w,.8);
 async function slide(toks){for(const t of toks){const id=RD.tokId(t,M.prof.seq);GR[id]&&await snd(id);await sleep(120)}await sleep(150)} // each sound, then the word
 // ---------- screens ----------
 const draw=(h,top)=>{R(`<div class=rd id=rd>${top===false?'':bar()}${h}</div>`,'');$('#rd').onclick=e=>{const b=e.target.closest('[data-a]');if(!b||b.disabled)return;const a=b.dataset.a;
