@@ -4,6 +4,7 @@ import Lessons from '../public/lessons.js'; // Spellcraft Lessons: content and p
 const {mis,classify}=Spelling;
 import {sayCfg,sayTier,engines as sayEngines,runEngine,scoreHeard,SAY_EXTRA,SAY_CAP,SAY_DAILY,SAY_GAP,SAY_MAXBYTES} from './sayit.js'; // Say It! (v4.4)
 import SayData from '../public/sayit-data.js';
+import RDATA from '../public/sayit-read.js';
 import {rdBin,rdJson} from './reading.js'; // Say It! "Learn to read" (v4.5)
 import {FORGE,RULES,forgeBy,forgeRules,forgeRulesLow} from './forge.js'; // Word Forge: roots, endings and the rules that join them
 const PARSED=Object.fromEntries(Object.entries(LISTS).map(([k,v])=>[k,v.w.split('\n').filter(Boolean).map(l=>l.split('|')).map(x=>({w:x[0].toLowerCase(),s:x[1],h:x[2]}))]));
@@ -210,6 +211,9 @@ async function sayGo(env,a,word,score){ // score: async (word, engineName) => {a
   D.prepare('insert into speech_best(student_id,word,xp,best,tries,upd) values(?,?,?,?,1,?) on conflict(student_id,word) do update set xp=max(xp,excluded.xp),best=max(best,excluded.best),tries=tries+1,upd=excluded.upd').bind(a.id,w,tier,acc,now)]);
  const [s2,b2,r2]=await Promise.all([D.prepare('select xp from students where id=?').bind(a.id).first(),D.prepare('select xp from speech_best where student_id=? and word=?').bind(a.id,w).first(),D.prepare('select xp from speech_attempts where id=?').bind(rid).first()]);
  return J({engine:eng||'browser',accuracy:acc,phonemes:eng==='azure'?(res.phonemes||[]):[],heard:String(res.heard||'').slice(0,60),pts:tier,gain:r2.xp,got:b2.xp,cap:SAY_CAP,xp:s2.xp,level:lvl(s2.xp),modes:ms(set,s2.xp)})}
+// ---- Say It! recorded audio: which names may be stored ----
+const AUD_MAX=450000; // bytes of WAV. 22.05 kHz mono 16-bit is about 44 KB a second
+const audOk=(kind,key)=>kind==='sounds'?!!RDATA.GR[key]:kind==='vo'?!!RDATA.VO[key]:kind==='words'?/^[a-z][a-z' -]{0,29}$/.test(key):false;
 export default{async fetch(req,env){
 const u=new URL(req.url),p=u.pathname;
 if(p==='/ws/duel'){const room=(u.searchParams.get('room')||'X').toUpperCase().slice(0,20),tk=u.searchParams.get('tok');let sid=0,name='Guest'+(100+Math.floor(Math.random()*900)),code='';
@@ -218,6 +222,23 @@ if(p==='/ws/duel'){const room=(u.searchParams.get('room')||'X').toUpperCase().sl
  return env.DUEL.get(env.DUEL.idFromName(room)).fetch(new Request(req,{headers:h}))}
 if(p==='/api/guest-words')return J(PARSED.default);
 if(p==='/api/guest-forge'){const n=Math.max(1,Math.min(12,+u.searchParams.get('n')||6));return J({rules:forgeRules(),items:FORGE.filter(x=>x.lv>=3&&x.lv<=4).sort(()=>Math.random()-.5).slice(0,n).map(pubForge)})}
+// Say It! recorded audio (v4.6). Served from D1 (saved in Admin > Audio); if a clip is not there, a static file in public/audio/ is used; if neither, the browser voice reads the text.
+if(p.startsWith('/api/audio/')&&req.method==='GET'){const m=p.slice(11).split('/');if(m.length!==2)return new Response('Not found',{status:404});let k;try{k=decodeURIComponent(m[1])}catch{return new Response('Not found',{status:404})}
+ if(!audOk(m[0],k))return new Response('Not found',{status:404});
+ const r=await env.DB.prepare('select type,b64,upd from audio_clips where kind=? and key=?').bind(m[0],k).first().catch(()=>null);
+ if(r){const et='"'+r.upd+'"';const h={'content-type':r.type,'cache-control':'no-cache',etag:et};if(req.headers.get('if-none-match')===et)return new Response(null,{status:304,headers:h});
+  const bin=atob(r.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);return new Response(u8,{headers:h})}
+ if(env.ASSETS){const f=await env.ASSETS.fetch(new Request(u.origin+'/audio/'+m[0]+'/'+encodeURIComponent(k)+'.mp3')).catch(()=>null);if(f&&f.ok&&/^audio\//.test(f.headers.get('content-type')||''))return new Response(f.body,{headers:{'content-type':'audio/mpeg','cache-control':'no-cache'}})}
+ return new Response('Not found',{status:404})}
+if(p==='/api/admin/audio/put'&&req.method==='POST'){ // the body is a WAV file, so this route is handled before the JSON parse below
+ if(!env.ADMIN_KEY||req.headers.get('x-admin-key')!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
+ const kind=u.searchParams.get('kind')||'',key=u.searchParams.get('key')||'';if(!audOk(kind,key))return J({error:'Unknown sound or line'},400);
+ if((+req.headers.get('content-length')||0)>AUD_MAX)return J({error:'Recording too long'},413);
+ const buf=new Uint8Array(await req.arrayBuffer());if(buf.length>AUD_MAX)return J({error:'Recording too long'},413);
+ const tag=(o,t)=>t.split('').every((c,i)=>buf[o+i]===c.charCodeAt(0));if(buf.length<1000||!tag(0,'RIFF')||!tag(8,'WAVE'))return J({error:'That is not a WAV recording'},400);
+ let bin='';for(let i=0;i<buf.length;i+=0x8000)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000));
+ const upd=Math.floor(Date.now()/1000);await env.DB.prepare("insert into audio_clips(kind,key,type,b64,bytes,upd) values(?,?,'audio/wav',?,?,?) on conflict(kind,key) do update set type='audio/wav',b64=excluded.b64,bytes=excluded.bytes,upd=excluded.upd").bind(kind,key,btoa(bin),buf.length,upd).run();
+ return J({ok:1,bytes:buf.length,upd})}
 if(p==='/api/say/score'&&req.method==='POST'){ // the body is a WAV file, so this route is handled before the JSON parse below
  const a0=await verify(env,(req.headers.get('authorization')||'').slice(7));if(!a0||a0.r!=='s')return J({error:'Not signed in'},401);
  const eng=sayEngines(env)[0];if(!eng)return J({error:'No speech checker is set up.'},400);
@@ -246,6 +267,9 @@ if(p==='/api/teacher/login'){const t=await D.prepare('select * from teachers whe
 if(p==='/api/admin/teacher'){if(!env.ADMIN_KEY||b.key!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
   b.user=String(b.user||'').trim();b.pass=String(b.pass||'');if(b.user.length<3||b.user.length>30)return J({error:'Username must be 3 to 30 characters'},400);if(b.pass.length<6)return J({error:'Password must be at least 6 characters'},400);
  const salt=crypto.randomUUID();try{await D.prepare('insert into teachers(user,salt,hash) values(?,?,?)').bind(b.user,salt,await hash(b.pass,salt)).run()}catch{return J({error:'Username taken'},400)}return J({ok:1})}
+if(p==='/api/admin/audio/list'||p==='/api/admin/audio/delete'){if(!env.ADMIN_KEY||b.key!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
+ if(p==='/api/admin/audio/list')return J({clips:(await D.prepare('select kind,key,bytes,upd from audio_clips order by kind,key').all()).results});
+ if(!audOk(b.kind,b.name))return J({error:'Unknown sound or line'},400);await D.prepare('delete from audio_clips where kind=? and key=?').bind(b.kind,b.name).run();return J({ok:1})}
 if(['/api/admin/teachers','/api/admin/classes','/api/admin/roster','/api/admin/resetpass'].includes(p)){if(!env.ADMIN_KEY||b.key!==env.ADMIN_KEY)return J({error:'Bad admin key'},403);
  if(p==='/api/admin/teachers'){const t=(await D.prepare('select t.id,t.user,(select count(*) from classes c where c.teacher_id=t.id) classes,(select count(*) from students s join classes c on c.code=s.code where c.teacher_id=t.id) pupils from teachers t order by t.user collate nocase').all()).results;
   return J({teachers:t,totals:{teachers:t.length,classes:t.reduce((n,x)=>n+x.classes,0),pupils:t.reduce((n,x)=>n+x.pupils,0)}})}
