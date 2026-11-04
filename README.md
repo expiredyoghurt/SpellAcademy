@@ -422,3 +422,13 @@ With voice off, or no parent consent, or no microphone, sessions use only the ac
 1. Run `migrations/016_reading.sql` in the D1 Console (also in `schema.sql`) before deploying.
 2. Deploy. No new secrets.
 3. Lower primary classes will see Learn to read at once, with voice still off.
+
+### Recording the sounds and voice-overs (v4.6): Admin > Audio
+
+Sign in as admin (Teacher / Admin > "Open the admin page" > admin key) and open the **Audio** tab. It lists the 57 sounds, 44 voice-overs and (optionally) the example words. Pick one, press **Space** (or Record), say it, press **Space** again, press **Enter** to save. The page trims the silence, levels the volume and saves a small WAV file (22.05 kHz, mono) in D1; pupils hear it straight away, with no deploy. Anything not recorded still uses the browser voice. Use **Next missing** to work through the list. Delete a clip to go back to the browser voice for that item.
+
+- **Upgrade:** run `migrations/017_audio.sql` in the D1 Console BEFORE deploying (after 015 and 016 if you have not yet).
+- **Where clips live:** table `audio_clips` (D1). They are served from `/api/audio/<sounds|vo|words>/<name>`. If no clip is saved, a file at `public/audio/<kind>/<name>.mp3` is used if you have put one there. wrangler.toml now has `binding = "ASSETS"` under `[assets]` for that fallback.
+- **Privacy:** these are your own recordings, not pupils'. Nothing here touches pupil data.
+- **Backup:** clips live in the database, not in the repo. Export with `wrangler d1 export` if you want a copy.
+- Record on a laptop or desktop with a decent microphone in a quiet room. A phone works if you open the admin page on it, but the page needs https and microphone permission.

@@ -39,3 +39,6 @@ create table if not exists rd_prof(student_id integer primary key,avatar text de
 create table if not exists rd_state(student_id integer,kind text,key text,h text default '[]',d text default '[]',box integer default 0,due integer default 0,upd integer default 0,primary key(student_id,kind,key));
 create table if not exists rd_log(id integer primary key autoincrement,student_id integer,act text,kind text,key text,ok integer default 0,assist integer default 0,day integer default 0,ts integer default (unixepoch()));
 create index if not exists rl_s on rd_log(student_id,day);
+
+-- v4.6 Say It! recorded audio (Admin > Audio). Run once in the D1 Console BEFORE deploying (safe to re-run).
+create table if not exists audio_clips(kind text,key text,type text default 'audio/wav',b64 text,bytes integer default 0,upd integer default 0,primary key(kind,key));
